@@ -1,6 +1,6 @@
 import type { MinigameInfo, PublicPlayer } from '@scribble/shared';
 import type { CSSProperties, ReactNode } from 'react';
-import { AVATAR_BODY, DrawingView } from '../drawing';
+import { AVATAR_BODY_URL, DrawingView } from '../drawing';
 import { useAvatar } from '../store';
 import { useCountdown } from '../useCountdown';
 import { Icon } from './Icon';
@@ -17,7 +17,11 @@ export function Avatar({ player, small, size = small ? 'sm' : 'md' }: { player: 
   const drawing = useAvatar(player.id);
   return (
     <span className={`ss-avatar ss-avatar--${size} ss-avatar--drawn`} style={crayonStyle(player.color)}>
-      <DrawingView drawing={drawing ?? AVATAR_BODY} underlay={drawing ? AVATAR_BODY : undefined} size={AVATAR_PX[size]} />
+      {drawing ? (
+        <DrawingView drawing={drawing} underlay={AVATAR_BODY_URL} size={AVATAR_PX[size]} />
+      ) : (
+        <img src={AVATAR_BODY_URL} alt="" draggable={false} />
+      )}
     </span>
   );
 }

@@ -1,7 +1,7 @@
 import { AVATAR_LIMITS, emptyDrawing, NAME_MAX_LENGTH, ROOM_CODE_LENGTH, sanitizeDrawing, type Drawing } from '@scribble/shared';
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { Icon } from '../components/Icon';
-import { AVATAR_BODY, CharacterDialog, DrawingView } from '../drawing';
+import { AVATAR_BODY_URL, CharacterDialog, DrawingView } from '../drawing';
 import { actions } from '../store';
 
 // v3: characters are drawn on the shared body, so older saved drawings (full animals) are dropped.
@@ -79,7 +79,7 @@ export function Home() {
         <div className="ss-stack">
           <div className="home__you">
             <button type="button" className="home__portrait" onClick={() => setEditing(true)} aria-label="Draw your character">
-              <DrawingView drawing={avatar} underlay={AVATAR_BODY} size={96} alt="" />
+              <DrawingView drawing={avatar} underlay={AVATAR_BODY_URL} size={96} alt="" />
             </button>
             <div className="ss-stack home__you-fields">
               <label className="ss-field" htmlFor="name">

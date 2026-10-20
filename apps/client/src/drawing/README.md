@@ -27,14 +27,13 @@ A drawing is a list of strokes, not pixels (`Drawing` and `Stroke` in `packages/
 
 | Export | What it does |
 | --- | --- |
-| `DrawingCanvas` | The drawing surface. Pointer input (mouse, touch, pen), live painting, brush cursor. Controlled: pass `drawing`, get the new drawing in `onChange` after each stroke. Optional `underlay`: a drawing painted underneath on its own layer, which the eraser can't touch |
+| `DrawingCanvas` | The drawing surface. Pointer input (mouse, touch, pen), live painting, brush cursor. Controlled: pass `drawing`, get the new drawing in `onChange` after each stroke. Optional `underlay`: an image URL shown underneath, which the eraser can't touch |
 | `useDrawingHistory(initial)` | A drawing with `commit`, `undo`, `redo`, `clear`, `canUndo`, `canRedo` |
 | `DrawingTools` | Pencil/eraser, brush sizes, opacity slider (pass `opacity` and `onOpacityChange`), colour picker, undo/redo/clear |
 | `ColorPicker` | The 16 pencil colours plus a custom colour |
-| `DrawingView` | Shows a drawing as an image, optionally over an `underlay` (cached per drawing, size and underlay). Use it for avatars, thumbnails, galleries |
+| `DrawingView` | Shows a drawing as an image (cached per drawing and size), optionally over an `underlay` image. Use it for avatars, thumbnails, galleries |
 | `renderDrawing(ctx, drawing, scale)` | Paints a drawing onto any canvas |
-| `Sketch` | Builds drawings from code: lines, outlines, scribbled fills. Used for the avatar body |
-| `AVATAR_BODY` | The base body every character is drawn on |
+| `AVATAR_BODY_URL` | The base body image every character is drawn on |
 | `CharacterEditor`, `CharacterDialog` | The character creator, and the same in a popup with Save and Cancel |
 
 ## A drawing area in five lines
@@ -64,10 +63,12 @@ Set `maxStrokes` and `maxPoints` on `DrawingCanvas` to the same limits the serve
 
 ## Player characters
 
-- Everyone draws on the same base body, `AVATAR_BODY` (`body.ts`): a head with ears, a neck and shoulders in a neutral colour. Players add the face, hair, clothes and anything else.
-- The body is an `underlay`: it's painted on its own layer, so the eraser only removes the player's strokes. It's never sent over the network. Every client builds the same body, and `Avatar` and `DrawingView` paint it under each player's drawing.
+- Everyone draws on the same base body, `src/assets/avatar-body.webp` (`AVATAR_BODY_URL`): a head with ears, a neck and shoulders in a neutral colour, on a transparent background. Players add the face, hair, clothes and anything else.
+- The body is an `underlay` image under the canvas, so the eraser only removes the player's strokes. It's never sent over the network. `Avatar` and `DrawingView` show it under each player's drawing.
 - A player's drawing holds only their own strokes: `AVATAR_SIZE` (256) squares, checked against `AVATAR_LIMITS` on the server and shown in a circle (the editor's dashed ring).
 - The server sends avatars once per player with the `room:avatars` event, not inside every room state, because they're the largest thing a client receives.
 - The home screen shows your character and opens `CharacterDialog` to change it. It's saved in `localStorage` when you press Save.
 
-To change the body, edit `body.ts` (fill shapes first, then outlines). Changing it changes every player's character, so keep the head where it is or faces drawn on the old body will no longer line up.
+To change the body, edit or replace the image: a square with a transparent background, at least 600px wide so it stays sharp in the editor on high-DPI screens. Changing it changes every player's character, so keep the head where it is or faces drawn on the old body will no longer line up.
+
+Pre-made art (bodies, example drawings, prompt pictures) belongs in image files, not in code that draws it.

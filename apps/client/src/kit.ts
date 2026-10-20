@@ -17,7 +17,7 @@ export {
   DEFAULT_PENCIL_COLOR,
   DEFAULT_PENCIL_OPACITY,
   OpacitySlider,
-  Sketch,
+  AVATAR_BODY_URL,
   StrokePainter,
   renderDrawing,
   strokeSeed,

@@ -26,7 +26,7 @@ body { min-height: 100dvh; }
 
 /* ---------- Drawn avatars ---------- */
 .ss-avatar--drawn { overflow: hidden; }
-.ss-avatar--drawn img { display: block; width: 100%; height: 100%; }
+.ss-avatar--drawn > img, .ss-avatar--drawn > .draw-view { display: block; width: 100%; height: 100%; }
 .ss-avatar--lg { width: 76px; height: 76px; }
 
 /* ---------- Home ---------- */
@@ -48,7 +48,7 @@ body { min-height: 100dvh; }
   transform: rotate(var(--tilt-left));
   transition: transform 120ms cubic-bezier(.34, 1.56, .64, 1), box-shadow 120ms ease-out;
 }
-.home__portrait img { display: block; width: 100%; height: 100%; }
+.home__portrait > .draw-view { height: 100%; }
 .home__portrait:hover { transform: rotate(var(--tilt-right)) scale(1.04); box-shadow: var(--drop-lg); }
 .home__portrait:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 .home__draw { align-self: flex-start; padding: var(--space-2) var(--space-4); font-size: 16px; }

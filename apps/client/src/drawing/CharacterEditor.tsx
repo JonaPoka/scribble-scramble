@@ -1,6 +1,6 @@
 import { AVATAR_LIMITS, type Drawing, type DrawingTool } from '@scribble/shared';
 import { useEffect, useRef, useState } from 'react';
-import { AVATAR_BODY } from './body';
+import { AVATAR_BODY_URL } from './avatarBody';
 import { DrawingCanvas } from './DrawingCanvas';
 import { DrawingTools } from './DrawingTools';
 import { DEFAULT_PENCIL_COLOR, DEFAULT_PENCIL_OPACITY } from './palette';
@@ -23,7 +23,7 @@ export function CharacterEditor({ initial, onChange }: { initial: Drawing; onCha
       <div className="char-editor__canvas">
         <DrawingCanvas
           drawing={history.drawing}
-          underlay={AVATAR_BODY}
+          underlay={AVATAR_BODY_URL}
           onChange={history.commit}
           tool={tool}
           color={color}

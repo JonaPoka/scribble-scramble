@@ -12,13 +12,23 @@ function bucket(px: number): number {
 interface DrawingViewProps {
   drawing: Drawing;
   size: number;
-  /** Painted underneath on its own layer (e.g. the avatar body). */
-  underlay?: Drawing;
+  /** Image URL shown underneath (e.g. the avatar body). The view then fills its container. */
+  underlay?: string;
   alt?: string;
   className?: string;
 }
 
 /** A read-only drawing shown as an image (avatars, thumbnails, galleries of finished drawings). */
 export function DrawingView({ drawing, size, underlay, alt = '', className }: DrawingViewProps) {
-  return <img className={className} src={drawingToDataUrl(drawing, bucket(size), underlay)} width={size} height={Math.round((size * drawing.height) / drawing.width)} alt={alt} draggable={false} />;
+  const src = drawingToDataUrl(drawing, bucket(size));
+  if (!underlay) {
+    const height = Math.round((size * drawing.height) / drawing.width);
+    return <img className={className} src={src} width={size} height={height} alt={alt} draggable={false} />;
+  }
+  return (
+    <span className={['draw-view', className].filter(Boolean).join(' ')} style={{ aspectRatio: `${drawing.width} / ${drawing.height}` }}>
+      <img src={underlay} alt="" draggable={false} />
+      <img src={src} alt={alt} draggable={false} />
+    </span>
+  );
 }

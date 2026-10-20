@@ -18,7 +18,17 @@
   touch-action: none;
   cursor: crosshair;
 }
-.draw-canvas canvas.draw-canvas__underlay { position: absolute; inset: 0; height: 100%; pointer-events: none; }
+.draw-canvas__underlay {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  border-radius: calc(var(--radius-lg) - var(--stroke-md));
+  pointer-events: none;
+  user-select: none;
+}
+
+/* A drawing over an underlay image, filling its container (avatars, the home portrait). */
+.draw-view { position: relative; display: block; width: 100%; }
+.draw-view img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .draw-canvas:hover canvas { cursor: none; }
 .draw-canvas--off canvas, .draw-canvas--off:hover canvas { cursor: default; }
 .draw-cursor {
