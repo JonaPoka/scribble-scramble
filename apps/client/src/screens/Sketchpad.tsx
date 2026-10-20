@@ -1,6 +1,6 @@
 import { type DrawingTool } from '@scribble/shared';
 import { useState } from 'react';
-import { DEFAULT_PENCIL_COLOR, DrawingCanvas, DrawingTools, countPoints, useDrawingHistory } from '../drawing';
+import { DEFAULT_PENCIL_COLOR, DEFAULT_PENCIL_OPACITY, DrawingCanvas, DrawingTools, countPoints, useDrawingHistory } from '../drawing';
 
 /**
  * A free drawing page, and a demo of the drawing system at a different size than avatars.
@@ -11,6 +11,7 @@ export function Sketchpad() {
   const [tool, setTool] = useState<DrawingTool>('pencil');
   const [color, setColor] = useState<string>(DEFAULT_PENCIL_COLOR);
   const [size, setSize] = useState(6);
+  const [opacity, setOpacity] = useState(DEFAULT_PENCIL_OPACITY);
 
   return (
     <main className="screen sketchpad">
@@ -21,7 +22,7 @@ export function Sketchpad() {
         </a>
       </header>
       <div className="sketchpad__body">
-        <DrawingCanvas drawing={history.drawing} onChange={history.commit} tool={tool} color={color} size={size} label="Sketchpad" />
+        <DrawingCanvas drawing={history.drawing} onChange={history.commit} tool={tool} color={color} size={size} opacity={opacity} label="Sketchpad" />
         <aside className="ss-panel sketchpad__tools">
           <DrawingTools
             tool={tool}
@@ -30,6 +31,8 @@ export function Sketchpad() {
             onColorChange={setColor}
             size={size}
             onSizeChange={setSize}
+            opacity={opacity}
+            onOpacityChange={setOpacity}
             onUndo={history.undo}
             onRedo={history.redo}
             onClear={history.clear}

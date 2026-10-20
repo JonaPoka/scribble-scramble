@@ -16,6 +16,14 @@ function curve(a: Pt, c: Pt, b: Pt, steps = 10): Pt[] {
   });
 }
 
+/** Points around part of an ellipse (angles in radians, 0 = right, clockwise), closed by a straight edge. */
+function halfEllipse(cx: number, cy: number, rx: number, ry: number, from: number, to: number, steps = 16): Pt[] {
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const t = from + ((to - from) * i) / steps;
+    return [cx + Math.cos(t) * rx, cy + Math.sin(t) * ry];
+  });
+}
+
 function buildBody(): Drawing {
   const s = new Sketch(AVATAR_SIZE, AVATAR_SIZE);
 
@@ -29,12 +37,15 @@ function buildBody(): Drawing {
   s.line(curve([160, 194], [214, 206], [220, 270]), INK);
   s.line(curve([96, 194], [128, 202], [160, 194]), INK);
 
-  // Neck.
+  // Neck. Its outlines start where the head ends, so they don't show through the head's fill.
   s.fill([[110, 150], [146, 150], [148, 198], [108, 198]], BODY, 8);
-  s.line([[111, 160], [109, 196]], INK).line([[145, 160], [147, 196]], INK);
+  s.line([[111, 168], [109, 196]], INK).line([[145, 168], [147, 196]], INK);
 
-  // Ears, then the head over them.
-  for (const x of [72, 184]) s.fillEllipse(x, 114, 11, 16, BODY, 7).ellipse(x, 114, 11, 16, INK, 4);
+  // Ears: only the outer half of each, which is all that shows beside the head.
+  // (The head's pencil fill is see-through, so anything drawn under it shows.)
+  s.fill(halfEllipse(72, 114, 11, 16, Math.PI * 0.5, Math.PI * 1.5), BODY, 7).ellipse(72, 114, 11, 16, INK, 4, Math.PI * 0.5, Math.PI * 1.5);
+  s.fill(halfEllipse(184, 114, 11, 16, Math.PI * -0.5, Math.PI * 0.5), BODY, 7).ellipse(184, 114, 11, 16, INK, 4, Math.PI * -0.5, Math.PI * 0.5);
+
   s.fillEllipse(128, 108, 57, 62, BODY, 10).ellipse(128, 108, 57, 62, INK);
 
   return s.build();

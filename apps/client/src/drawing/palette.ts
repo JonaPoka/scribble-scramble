@@ -22,3 +22,6 @@ export const PENCIL_PALETTE = [
 ] as const;
 
 export const DEFAULT_PENCIL_COLOR = PENCIL_PALETTE[0].hex;
+
+/** Starting pencil opacity: dark enough to read clearly, still a little grainy. */
+export const DEFAULT_PENCIL_OPACITY = 0.85;

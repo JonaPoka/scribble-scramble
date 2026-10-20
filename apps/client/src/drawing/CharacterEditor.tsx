@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AVATAR_BODY } from './body';
 import { DrawingCanvas } from './DrawingCanvas';
 import { DrawingTools } from './DrawingTools';
-import { DEFAULT_PENCIL_COLOR } from './palette';
+import { DEFAULT_PENCIL_COLOR, DEFAULT_PENCIL_OPACITY } from './palette';
 import { useDrawingHistory } from './useDrawingHistory';
 
 /** Draw on the shared base body. The body is its own layer, so the eraser only removes the player's strokes. */
@@ -12,6 +12,7 @@ export function CharacterEditor({ initial, onChange }: { initial: Drawing; onCha
   const [tool, setTool] = useState<DrawingTool>('pencil');
   const [color, setColor] = useState<string>(DEFAULT_PENCIL_COLOR);
   const [size, setSize] = useState(6);
+  const [opacity, setOpacity] = useState(DEFAULT_PENCIL_OPACITY);
 
   useEffect(() => {
     onChange(history.drawing);
@@ -27,6 +28,7 @@ export function CharacterEditor({ initial, onChange }: { initial: Drawing; onCha
           tool={tool}
           color={color}
           size={size}
+          opacity={opacity}
           maxStrokes={AVATAR_LIMITS.maxStrokes}
           maxPoints={AVATAR_LIMITS.maxPoints}
           label="Your character. Draw a face, hair and clothes on it."
@@ -41,6 +43,8 @@ export function CharacterEditor({ initial, onChange }: { initial: Drawing; onCha
         onColorChange={setColor}
         size={size}
         onSizeChange={setSize}
+        opacity={opacity}
+        onOpacityChange={setOpacity}
         onUndo={history.undo}
         onClear={history.clear}
         canUndo={history.canUndo}

@@ -8,14 +8,15 @@ A drawing is a list of strokes, not pixels (`Drawing` and `Stroke` in `packages/
 
 ```ts
 { width: 256, height: 256, strokes: [
-  { tool: 'pencil', color: '#ff5d4f', size: 6, points: [x0, y0, x1, y1, ...] },
+  { tool: 'pencil', color: '#ff5d4f', size: 6, opacity: 0.85, points: [x0, y0, x1, y1, ...] },
   { tool: 'eraser', color: '#2b1d14', size: 12, points: [...] },
 ] }
 ```
 
 - Small to send over Socket.IO, and sharp at any size.
 - Coordinates are in drawing units (`width` × `height`), not screen pixels, so the same drawing works on any screen.
-- The eraser is a stroke too, so templates can be erased and every change can be undone.
+- The eraser is a stroke too, so every change can be undone.
+- `opacity` (0.1 to 1) sets how dark the pencil is. Strokes without it use `STROKE_OPACITY_FALLBACK` (0.6), the original look. The eraser ignores it.
 - **On the server, always pass drawings from players through `sanitizeDrawing(raw, limits)`** (or `sanitizeStroke` for single strokes). It checks the shape, colours, sizes and point counts, and returns a clean copy or `null`.
 
 ## The pencil brush
@@ -28,7 +29,7 @@ A drawing is a list of strokes, not pixels (`Drawing` and `Stroke` in `packages/
 | --- | --- |
 | `DrawingCanvas` | The drawing surface. Pointer input (mouse, touch, pen), live painting, brush cursor. Controlled: pass `drawing`, get the new drawing in `onChange` after each stroke. Optional `underlay`: a drawing painted underneath on its own layer, which the eraser can't touch |
 | `useDrawingHistory(initial)` | A drawing with `commit`, `undo`, `redo`, `clear`, `canUndo`, `canRedo` |
-| `DrawingTools` | Pencil/eraser, brush sizes, colour picker, undo/redo/clear |
+| `DrawingTools` | Pencil/eraser, brush sizes, opacity slider (pass `opacity` and `onOpacityChange`), colour picker, undo/redo/clear |
 | `ColorPicker` | The 16 pencil colours plus a custom colour |
 | `DrawingView` | Shows a drawing as an image, optionally over an `underlay` (cached per drawing, size and underlay). Use it for avatars, thumbnails, galleries |
 | `renderDrawing(ctx, drawing, scale)` | Paints a drawing onto any canvas |

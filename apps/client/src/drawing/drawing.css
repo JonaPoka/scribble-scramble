@@ -54,6 +54,54 @@
 .draw-tool:focus-visible, .draw-swatch:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .draw-size__dot { display: block; border-radius: 50%; border: var(--stroke-thin) solid var(--outline); }
 
+/* ---------- Opacity slider ---------- */
+.draw-opacity {
+  flex: 1 1 160px;
+  display: flex; align-items: center; gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) var(--space-3);
+  background: var(--panel-sunk);
+  border: var(--stroke-thin) solid var(--outline);
+  border-radius: var(--wobble-btn);
+}
+.draw-opacity__label { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.draw-opacity__value { min-width: 4ch; text-align: right; font-weight: 700; font-size: 14px; }
+.draw-opacity__range {
+  flex: 1; min-width: 60px; height: 36px; margin: 0;
+  appearance: none; -webkit-appearance: none;
+  background: transparent; cursor: pointer;
+}
+.draw-opacity__range:disabled { opacity: .4; cursor: not-allowed; }
+/* The track fades from nothing to the pencil colour, like the stroke will. */
+.draw-opacity__range::-webkit-slider-runnable-track {
+  height: 12px;
+  background: linear-gradient(90deg, transparent, var(--swatch)), var(--panel);
+  border: var(--stroke-thin) solid var(--outline);
+  border-radius: var(--radius-pill);
+}
+.draw-opacity__range::-moz-range-track {
+  height: 8px;
+  background: linear-gradient(90deg, transparent, var(--swatch)), var(--panel);
+  border: var(--stroke-thin) solid var(--outline);
+  border-radius: var(--radius-pill);
+}
+.draw-opacity__range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 24px; height: 24px; margin-top: -8px;
+  background: var(--sunny);
+  border: var(--stroke-md) solid var(--outline);
+  border-radius: var(--wobble-blob);
+  box-shadow: var(--drop-sm);
+}
+.draw-opacity__range::-moz-range-thumb {
+  width: 18px; height: 18px;
+  background: var(--sunny);
+  border: var(--stroke-md) solid var(--outline);
+  border-radius: var(--wobble-blob);
+  box-shadow: var(--drop-sm);
+}
+.draw-opacity__range:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+
 /* ---------- Colour picker ---------- */
 .draw-colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: var(--space-2); }
 .draw-swatch {

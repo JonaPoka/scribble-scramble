@@ -15,6 +15,8 @@ export {
   DrawingView,
   PENCIL_PALETTE,
   DEFAULT_PENCIL_COLOR,
+  DEFAULT_PENCIL_OPACITY,
+  OpacitySlider,
   Sketch,
   StrokePainter,
   renderDrawing,

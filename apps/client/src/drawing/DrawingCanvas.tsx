@@ -9,6 +9,8 @@ export interface DrawingCanvasProps {
   tool: DrawingTool;
   color: string;
   size: number;
+  /** Pencil darkness, MIN_STROKE_OPACITY to 1. Leave out for the fallback look. Ignored by the eraser. */
+  opacity?: number;
   /** Turns input off (another player's turn, results phase). The drawing still shows. */
   disabled?: boolean;
   /** Painted underneath on its own layer that the eraser can't touch (e.g. the avatar body). */
@@ -36,6 +38,7 @@ export function DrawingCanvas({
   tool,
   color,
   size,
+  opacity,
   disabled,
   underlay,
   onStrokeProgress,
@@ -122,7 +125,8 @@ export function DrawingCanvas({
     e.preventDefault();
 
     const { x, y } = toLocal(e);
-    const stroke: Stroke = { tool, color, size, points: [x, y] };
+    const stroke: Stroke =
+      tool === 'pencil' && opacity !== undefined ? { tool, color, size, opacity, points: [x, y] } : { tool, color, size, points: [x, y] };
     const painter = new StrokePainter(ctx, stroke, scaleRef.current, strokeSeed(drawing.strokes.length));
     painter.addPoint(x, y);
     activeRef.current = { pointerId: e.pointerId, stroke, painter, budget: maxPoints - countPoints(drawing) - 1 };

@@ -12,6 +12,8 @@ export interface Stroke {
   color: string;
   /** Brush diameter in drawing units. */
   size: number;
+  /** How dark the pencil is, MIN_STROKE_OPACITY to 1. Missing means STROKE_OPACITY_FALLBACK. Ignored by the eraser. */
+  opacity?: number;
   /** Flat list of x, y pairs in drawing units: [x0, y0, x1, y1, ...]. */
   points: number[];
 }
@@ -27,6 +29,10 @@ export const AVATAR_SIZE = 256;
 
 export const BRUSH_SIZES = [3, 6, 12, 22] as const;
 export const MAX_BRUSH_SIZE = 64;
+
+export const MIN_STROKE_OPACITY = 0.1;
+/** Opacity for strokes saved before opacity existed (and for pre-made art like the avatar body). */
+export const STROKE_OPACITY_FALLBACK = 0.6;
 
 export interface DrawingLimits {
   width: number;
@@ -54,6 +60,12 @@ export function sanitizeStroke(raw: unknown, width: number, height: number): Str
   const size = Number(s.size);
   if (!Number.isFinite(size) || size < 1 || size > MAX_BRUSH_SIZE) return null;
   if (!Array.isArray(s.points) || s.points.length < 2 || s.points.length % 2 !== 0) return null;
+  let opacity: number | undefined;
+  if (s.opacity !== undefined) {
+    opacity = Number(s.opacity);
+    if (!Number.isFinite(opacity) || opacity < MIN_STROKE_OPACITY || opacity > 1) return null;
+    opacity = Math.round(opacity * 100) / 100;
+  }
 
   const margin = MAX_BRUSH_SIZE;
   const points: number[] = [];
@@ -64,7 +76,7 @@ export function sanitizeStroke(raw: unknown, width: number, height: number): Str
     if (x < -margin || y < -margin || x > width + margin || y > height + margin) return null;
     points.push(Math.round(x * 10) / 10, Math.round(y * 10) / 10);
   }
-  return { tool: s.tool, color, size, points };
+  return opacity === undefined ? { tool: s.tool, color, size, points } : { tool: s.tool, color, size, opacity, points };
 }
 
 /**

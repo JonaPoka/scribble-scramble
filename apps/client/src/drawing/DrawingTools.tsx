@@ -1,4 +1,4 @@
-import { BRUSH_SIZES, type DrawingTool } from '@scribble/shared';
+import { BRUSH_SIZES, MIN_STROKE_OPACITY, type DrawingTool } from '@scribble/shared';
 import type { CSSProperties, ReactNode } from 'react';
 import { Icon } from '../components/Icon';
 import { PENCIL_PALETTE } from './palette';
@@ -72,6 +72,39 @@ export function ColorPicker({ color, onChange }: ColorPickerProps) {
   );
 }
 
+/** How dark the pencil draws. Disabled for the eraser, which always erases fully. */
+export function OpacitySlider({
+  value,
+  onChange,
+  color,
+  disabled,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  color: string;
+  disabled?: boolean;
+}) {
+  const percent = Math.round(value * 100);
+  return (
+    <label className="draw-opacity" title={disabled ? 'The eraser always erases fully' : undefined}>
+      <span className="draw-opacity__label">Opacity</span>
+      <input
+        type="range"
+        className="draw-opacity__range"
+        min={MIN_STROKE_OPACITY * 100}
+        max={100}
+        step={5}
+        value={percent}
+        disabled={disabled}
+        aria-valuetext={`${percent}%`}
+        style={{ '--swatch': color } as CSSProperties}
+        onChange={(e) => onChange(Number(e.target.value) / 100)}
+      />
+      <span className="draw-opacity__value tabular">{percent}%</span>
+    </label>
+  );
+}
+
 export interface DrawingToolsProps {
   tool: DrawingTool;
   onToolChange: (tool: DrawingTool) => void;
@@ -79,6 +112,9 @@ export interface DrawingToolsProps {
   onColorChange: (hex: string) => void;
   size: number;
   onSizeChange: (size: number) => void;
+  /** Pencil darkness 0.1 to 1. Pass both to show the opacity slider. */
+  opacity?: number;
+  onOpacityChange?: (opacity: number) => void;
   onUndo?: () => void;
   onRedo?: () => void;
   onClear?: () => void;
@@ -128,7 +164,12 @@ export function DrawingTools(props: DrawingToolsProps) {
             >
               <span
                 className="draw-size__dot"
-                style={{ width: 4 + s * 0.9, height: 4 + s * 0.9, background: tool === 'eraser' ? 'var(--panel)' : color }}
+                style={{
+                  width: 4 + s * 0.9,
+                  height: 4 + s * 0.9,
+                  background: tool === 'eraser' ? 'var(--panel)' : color,
+                  opacity: tool === 'eraser' ? 1 : (props.opacity ?? 1),
+                }}
               />
             </button>
           ))}
@@ -152,6 +193,10 @@ export function DrawingTools(props: DrawingToolsProps) {
               </button>
             )}
           </div>
+        )}
+
+        {props.opacity !== undefined && props.onOpacityChange && (
+          <OpacitySlider value={props.opacity} onChange={props.onOpacityChange} color={color} disabled={tool === 'eraser'} />
         )}
       </div>
 

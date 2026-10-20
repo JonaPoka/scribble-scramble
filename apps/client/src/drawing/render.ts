@@ -1,4 +1,4 @@
-import type { Drawing, Stroke } from '@scribble/shared';
+import { STROKE_OPACITY_FALLBACK, type Drawing, type Stroke } from '@scribble/shared';
 
 /** Small fast seeded random generator, so a stroke's pencil grain is identical every time it is drawn. */
 export function seededRandom(seed: number): () => number {
@@ -34,7 +34,7 @@ export class StrokePainter {
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
-    private readonly stroke: Pick<Stroke, 'tool' | 'color' | 'size'>,
+    private readonly stroke: Pick<Stroke, 'tool' | 'color' | 'size' | 'opacity'>,
     /** Canvas pixels per drawing unit. */
     private readonly scale: number,
     seed: number,
@@ -77,7 +77,12 @@ export class StrokePainter {
     const { ctx, rand, scale } = this;
     const size = this.stroke.size;
     const radius = size / 2;
-    const grains = Math.ceil(3 + size * 1.1);
+    // Opacity darkens each grain and packs grains closer, so 100% reads as a nearly solid line.
+    // Above the fallback (60%) both ramp up faster; at or below it, strokes look as they always did.
+    const opacity = this.stroke.opacity ?? STROKE_OPACITY_FALLBACK;
+    const extra = Math.max(0, opacity - STROKE_OPACITY_FALLBACK);
+    const strength = opacity * (1 + extra * 2.5);
+    const grains = Math.ceil((3 + size * 1.1) * (0.6 + opacity * 0.7) * (1 + extra * 1.2));
     const grain = Math.max(0.8, size * 0.11);
     ctx.save();
     ctx.fillStyle = this.stroke.color;
@@ -85,7 +90,7 @@ export class StrokePainter {
       // Two randoms summed: grains bunch towards the middle of the line, like pencil pressure.
       const dx = (rand() + rand() - 1) * radius;
       const dy = (rand() + rand() - 1) * radius;
-      const alpha = 0.18 + rand() * 0.45;
+      const alpha = Math.min(1, (0.3 + rand() * 0.7) * strength);
       const g = grain * (0.6 + rand() * 0.8);
       if (dx * dx + dy * dy > radius * radius) continue;
       ctx.globalAlpha = alpha;
