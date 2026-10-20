@@ -6,5 +6,6 @@ export { DrawingCanvas, type DrawingCanvasProps } from './DrawingCanvas';
 export { ColorPicker, DrawingTools, OpacitySlider, type ColorPickerProps, type DrawingToolsProps } from './DrawingTools';
 export { DrawingView } from './DrawingView';
 export { DEFAULT_PENCIL_COLOR, DEFAULT_PENCIL_OPACITY, PENCIL_PALETTE } from './palette';
-export { countPoints, drawingToDataUrl, renderDrawing, StrokePainter, strokeSeed } from './render';
+export { computeFill } from './fill';
+export { countPoints, paintFill, drawingToDataUrl, renderDrawing, StrokePainter, strokeSeed } from './render';
 export { useDrawingHistory } from './useDrawingHistory';

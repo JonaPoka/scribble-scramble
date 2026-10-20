@@ -10,12 +10,16 @@ A drawing is a list of strokes, not pixels (`Drawing` and `Stroke` in `packages/
 { width: 256, height: 256, strokes: [
   { tool: 'pencil', color: '#ff5d4f', size: 6, opacity: 0.85, points: [x0, y0, x1, y1, ...] },
   { tool: 'eraser', color: '#2b1d14', size: 12, points: [...] },
+  { tool: 'fill', color: '#63d471', opacity: 0.85, rowHeight: 0.5, spans: [y, x0, x1, ...] },
 ] }
 ```
 
 - Small to send over Socket.IO, and sharp at any size.
 - Coordinates are in drawing units (`width` × `height`), not screen pixels, so the same drawing works on any screen.
 - The eraser is a stroke too, so every change can be undone.
+- A fill is a stroke too. The area is worked out once, where the player clicks (`computeFill` in `fill.ts`), and stored as horizontal spans, so it looks the same on every screen and the server can check it like any other stroke.
+  - The player's lines (traced as solid lines, so the pencil grain can't leak) and the underlay's dark outlines stop a fill. Earlier fills don't, so filling a filled area re-colours it.
+  - Fills count towards `maxPoints` by span (`strokeCost`).
 - `opacity` (0.1 to 1) sets how dark the pencil is. Strokes without it use `STROKE_OPACITY_FALLBACK` (0.6), the original look. The eraser ignores it.
 - **On the server, always pass drawings from players through `sanitizeDrawing(raw, limits)`** (or `sanitizeStroke` for single strokes). It checks the shape, colours, sizes and point counts, and returns a clean copy or `null`.
 
@@ -29,10 +33,11 @@ A drawing is a list of strokes, not pixels (`Drawing` and `Stroke` in `packages/
 | --- | --- |
 | `DrawingCanvas` | The drawing surface. Pointer input (mouse, touch, pen), live painting, brush cursor. Controlled: pass `drawing`, get the new drawing in `onChange` after each stroke. Optional `underlay`: an image URL shown underneath, which the eraser can't touch |
 | `useDrawingHistory(initial)` | A drawing with `commit`, `undo`, `redo`, `clear`, `canUndo`, `canRedo` |
-| `DrawingTools` | Pencil/eraser, brush sizes, opacity slider (pass `opacity` and `onOpacityChange`), colour picker, undo/redo/clear |
+| `DrawingTools` | Pencil, eraser and fill, brush sizes, opacity slider (pass `opacity` and `onOpacityChange`), colour picker, undo/redo/clear |
 | `ColorPicker` | The 16 pencil colours plus a custom colour |
 | `DrawingView` | Shows a drawing as an image (cached per drawing and size), optionally over an `underlay` image. Use it for avatars, thumbnails, galleries |
 | `renderDrawing(ctx, drawing, scale)` | Paints a drawing onto any canvas |
+| `computeFill(drawing, underlay, x, y, color, opacity)` | The fill tool's area as a `FillStroke`, or `null` on a line. `DrawingCanvas` calls it for you when `tool` is `'fill'` |
 | `AVATAR_BODY_URL` | The base body image every character is drawn on |
 | `CharacterEditor`, `CharacterDialog` | The character creator, and the same in a popup with Save and Cancel |
 
@@ -56,7 +61,7 @@ const [size, setSize] = useState(6);
 For a game where one player draws and the others watch:
 
 - **Drawer:** `onStrokeProgress(stroke)` fires as the current stroke grows. Send its new points to the server (throttle to every ~50 ms), and send the finished stroke from `onChange`.
-- **Server:** run each stroke through `sanitizeStroke`, then forward it with `ctx.emit`.
+- **Server:** run each stroke through `sanitizeStroke`, then forward it with `ctx.emit`. Fills arrive whole, through `onChange`, like a finished stroke.
 - **Watchers:** add finished strokes to their drawing and pass it to a `DrawingCanvas` with `disabled`. It repaints when `drawing` changes. To show a stroke while it's still being drawn, render the drawing plus that stroke.
 
 Set `maxStrokes` and `maxPoints` on `DrawingCanvas` to the same limits the server checks, so players can't draw something the server will reject.

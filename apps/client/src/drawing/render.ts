@@ -1,4 +1,4 @@
-import { STROKE_OPACITY_FALLBACK, type Drawing, type Stroke } from '@scribble/shared';
+import { STROKE_OPACITY_FALLBACK, strokeCost, type Drawing, type FillStroke, type PathStroke } from '@scribble/shared';
 
 /** Small fast seeded random generator, so a stroke's pencil grain is identical every time it is drawn. */
 export function seededRandom(seed: number): () => number {
@@ -10,6 +10,16 @@ export function seededRandom(seed: number): () => number {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/**
+ * How strongly to lay down colour for an opacity. At or below the fallback (60%) it is the
+ * opacity itself; above it ramps up faster, so 100% reads as nearly solid.
+ */
+export function pencilStrength(opacity: number | undefined): { opacity: number; extra: number; strength: number } {
+  const o = opacity ?? STROKE_OPACITY_FALLBACK;
+  const extra = Math.max(0, o - STROKE_OPACITY_FALLBACK);
+  return { opacity: o, extra, strength: o * (1 + extra * 2.5) };
 }
 
 /** Grain seed for the stroke at this position in a drawing. */
@@ -34,7 +44,7 @@ export class StrokePainter {
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
-    private readonly stroke: Pick<Stroke, 'tool' | 'color' | 'size' | 'opacity'>,
+    private readonly stroke: Pick<PathStroke, 'tool' | 'color' | 'size' | 'opacity'>,
     /** Canvas pixels per drawing unit. */
     private readonly scale: number,
     seed: number,
@@ -78,10 +88,7 @@ export class StrokePainter {
     const size = this.stroke.size;
     const radius = size / 2;
     // Opacity darkens each grain and packs grains closer, so 100% reads as a nearly solid line.
-    // Above the fallback (60%) both ramp up faster; at or below it, strokes look as they always did.
-    const opacity = this.stroke.opacity ?? STROKE_OPACITY_FALLBACK;
-    const extra = Math.max(0, opacity - STROKE_OPACITY_FALLBACK);
-    const strength = opacity * (1 + extra * 2.5);
+    const { opacity, extra, strength } = pencilStrength(this.stroke.opacity);
     const grains = Math.ceil((3 + size * 1.1) * (0.6 + opacity * 0.7) * (1 + extra * 1.2));
     const grain = Math.max(0.8, size * 0.11);
     ctx.save();
@@ -114,11 +121,48 @@ export class StrokePainter {
   }
 }
 
+/**
+ * Paints a bucket fill: an even wash of colour plus scattered grains, like an area shaded in
+ * with a coloured pencil. `seed` keeps the grain identical on every render.
+ */
+export function paintFill(ctx: CanvasRenderingContext2D, fill: FillStroke, scale: number, seed: number): void {
+  const { strength } = pencilStrength(fill.opacity);
+  const rand = seededRandom(seed);
+  const region = new Path2D();
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, area = 0;
+  for (let i = 0; i < fill.spans.length; i += 3) {
+    const [y, x0, x1] = [fill.spans[i]!, fill.spans[i + 1]!, fill.spans[i + 2]!];
+    // A sliver of overlap between rows hides seams when the fill is scaled.
+    region.rect(x0 * scale, y * scale, (x1 - x0) * scale, fill.rowHeight * scale + 0.5);
+    minX = Math.min(minX, x0);
+    maxX = Math.max(maxX, x1);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y + fill.rowHeight);
+    area += (x1 - x0) * fill.rowHeight;
+  }
+
+  ctx.save();
+  ctx.clip(region);
+  ctx.fillStyle = fill.color;
+  ctx.globalAlpha = Math.min(0.9, 0.6 * strength);
+  ctx.fillRect(minX * scale, minY * scale, (maxX - minX) * scale, (maxY - minY) * scale);
+  const grains = Math.round(area * 0.5);
+  for (let i = 0; i < grains; i++) {
+    const gx = minX + rand() * (maxX - minX);
+    const gy = minY + rand() * (maxY - minY);
+    const g = 0.8 + rand() * 1.2;
+    ctx.globalAlpha = Math.min(1, rand() * 0.45 * strength);
+    ctx.fillRect(gx * scale, gy * scale, g * scale, g * scale);
+  }
+  ctx.restore();
+}
+
 /** Clears the canvas and paints a whole drawing. `scale` is canvas pixels per drawing unit. */
 export function renderDrawing(ctx: CanvasRenderingContext2D, drawing: Drawing, scale: number): void {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   drawing.strokes.forEach((stroke, i) => {
-    new StrokePainter(ctx, stroke, scale, strokeSeed(i)).addPoints(stroke.points);
+    if (stroke.tool === 'fill') paintFill(ctx, stroke, scale, strokeSeed(i));
+    else new StrokePainter(ctx, stroke, scale, strokeSeed(i)).addPoints(stroke.points);
   });
 }
 
@@ -145,6 +189,7 @@ export function drawingToDataUrl(drawing: Drawing, px: number): string {
   return url;
 }
 
+/** Total cost of a drawing against DrawingLimits.maxPoints (points plus fill spans). */
 export function countPoints(drawing: Drawing): number {
-  return drawing.strokes.reduce((n, s) => n + s.points.length / 2, 0);
+  return drawing.strokes.reduce((n, s) => n + strokeCost(s), 0);
 }

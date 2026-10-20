@@ -1,6 +1,7 @@
-import type { Drawing, DrawingTool, Stroke } from '@scribble/shared';
+import { strokeCost, type Drawing, type DrawingTool, type PathStroke, type Stroke } from '@scribble/shared';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
-import { countPoints, renderDrawing, StrokePainter, strokeSeed } from './render';
+import { computeFill } from './fill';
+import { countPoints, paintFill, renderDrawing, StrokePainter, strokeSeed } from './render';
 
 export interface DrawingCanvasProps {
   drawing: Drawing;
@@ -9,14 +10,14 @@ export interface DrawingCanvasProps {
   tool: DrawingTool;
   color: string;
   size: number;
-  /** Pencil darkness, MIN_STROKE_OPACITY to 1. Leave out for the fallback look. Ignored by the eraser. */
+  /** Pencil and fill darkness, MIN_STROKE_OPACITY to 1. Leave out for the fallback look. Ignored by the eraser. */
   opacity?: number;
   /** Turns input off (another player's turn, results phase). The drawing still shows. */
   disabled?: boolean;
   /** Image URL shown underneath on its own layer, which the eraser can't touch (e.g. the avatar body). */
   underlay?: string;
-  /** Called as the current stroke grows. Use it to stream a live stroke to other players. */
-  onStrokeProgress?: (stroke: Stroke) => void;
+  /** Called as the current pencil or eraser stroke grows. Use it to stream a live stroke to other players. */
+  onStrokeProgress?: (stroke: PathStroke) => void;
   /** Stop accepting new strokes or points past these limits (match the server's DrawingLimits). */
   maxStrokes?: number;
   maxPoints?: number;
@@ -48,12 +49,13 @@ export function DrawingCanvas({
   className,
 }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const underlayRef = useRef<HTMLImageElement>(null);
   const scaleRef = useRef(1);
   const drawingRef = useRef(drawing);
   drawingRef.current = drawing;
   /** The strokes array currently painted on the canvas, to skip needless full re-renders. */
   const paintedRef = useRef<Stroke[] | null>(null);
-  const activeRef = useRef<{ pointerId: number; stroke: Stroke; painter: StrokePainter; budget: number } | null>(null);
+  const activeRef = useRef<{ pointerId: number; stroke: PathStroke; painter: StrokePainter; budget: number } | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
   const repaint = useCallback(() => {
@@ -98,16 +100,33 @@ export function DrawingCanvas({
     };
   };
 
+  const commit = (stroke: Stroke) => {
+    const strokes = [...drawingRef.current.strokes, stroke];
+    paintedRef.current = strokes;
+    onChange?.({ ...drawingRef.current, strokes });
+  };
+
+  const bucketFill = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    const fill = computeFill(drawing, underlayRef.current, x, y, color, opacity);
+    if (!fill || countPoints(drawing) + strokeCost(fill) > maxPoints) return;
+    paintFill(ctx, fill, scaleRef.current, strokeSeed(drawing.strokes.length));
+    commit(fill);
+  };
+
   const onPointerDown = (e: PointerEvent<HTMLCanvasElement>) => {
     if (disabled || e.button !== 0 || activeRef.current) return;
     if (drawing.strokes.length >= maxStrokes) return;
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
 
     const { x, y } = toLocal(e);
-    const stroke: Stroke =
+    if (tool === 'fill') {
+      bucketFill(ctx, x, y);
+      return;
+    }
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const stroke: PathStroke =
       tool === 'pencil' && opacity !== undefined ? { tool, color, size, opacity, points: [x, y] } : { tool, color, size, points: [x, y] };
     const painter = new StrokePainter(ctx, stroke, scaleRef.current, strokeSeed(drawing.strokes.length));
     painter.addPoint(x, y);
@@ -142,12 +161,11 @@ export function DrawingCanvas({
     const active = activeRef.current;
     if (!active || active.pointerId !== e.pointerId) return;
     activeRef.current = null;
-    const strokes = [...drawingRef.current.strokes, active.stroke];
-    paintedRef.current = strokes;
-    onChange?.({ ...drawingRef.current, strokes });
+    commit(active.stroke);
   };
 
-  const cursorStyle: CSSProperties | undefined = cursor
+  // The fill tool uses a plain crosshair; the others show a ring the size of the brush.
+  const cursorStyle: CSSProperties | undefined = cursor && tool !== 'fill'
     ? {
         left: `${(cursor.x / drawing.width) * 100}%`,
         top: `${(cursor.y / drawing.height) * 100}%`,
@@ -157,8 +175,8 @@ export function DrawingCanvas({
     : undefined;
 
   return (
-    <div className={['draw-canvas', disabled && 'draw-canvas--off', className].filter(Boolean).join(' ')}>
-      {underlay && <img className="draw-canvas__underlay" src={underlay} alt="" draggable={false} />}
+    <div className={['draw-canvas', disabled && 'draw-canvas--off', tool === 'fill' && 'draw-canvas--fill', className].filter(Boolean).join(' ')}>
+      {underlay && <img ref={underlayRef} className="draw-canvas__underlay" src={underlay} alt="" draggable={false} />}
       <canvas
         ref={canvasRef}
         role="img"

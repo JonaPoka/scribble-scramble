@@ -18,6 +18,14 @@ const EraserIcon = () => (
     <path d="M8.9 9.5l5.7 5.8" />
   </ToolIcon>
 );
+const FillIcon = () => (
+  <ToolIcon>
+    <path d="M4.6 11.4l7.2-7.2 7.6 7.6-6.4 6.4a2.4 2.4 0 0 1-3.4 0z" />
+    <path d="M4.4 11.6h14.8" />
+    <path d="M10 2.4l1.8 1.8" />
+    <path d="M20.2 15.6c.9 1.4 1.4 2.5 1.4 3.2a1.4 1.4 0 0 1-2.8 0c0-.7.5-1.8 1.4-3.2z" />
+  </ToolIcon>
+);
 const UndoIcon = () => (
   <ToolIcon>
     <path d="M9.2 5.2L4.4 9.8l4.8 4.6" />
@@ -149,6 +157,16 @@ export function DrawingTools(props: DrawingToolsProps) {
           >
             <EraserIcon />
           </button>
+          <button
+            type="button"
+            className="draw-tool"
+            aria-pressed={tool === 'fill'}
+            onClick={() => onToolChange('fill')}
+            title="Fill"
+            aria-label="Fill"
+          >
+            <FillIcon />
+          </button>
         </div>
 
         <div className="draw-tools__group" role="radiogroup" aria-label="Brush size">
@@ -204,7 +222,8 @@ export function DrawingTools(props: DrawingToolsProps) {
         color={color}
         onChange={(hex) => {
           onColorChange(hex);
-          onToolChange('pencil');
+          // Picking a colour while erasing switches back to drawing; the fill tool stays a fill.
+          if (tool === 'eraser') onToolChange('pencil');
         }}
       />
     </div>
