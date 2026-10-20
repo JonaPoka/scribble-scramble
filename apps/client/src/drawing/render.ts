@@ -121,40 +121,91 @@ export class StrokePainter {
   }
 }
 
+/** Side of a fill texture tile, in drawing units. Tiles are drawn at 2 px per unit. */
+const TILE_UNITS = 48;
+const tiles = new Map<string, HTMLCanvasElement>();
+
 /**
- * Paints a bucket fill: an even wash of colour plus scattered grains, like an area shaded in
- * with a coloured pencil. `seed` keeps the grain identical on every render.
+ * A small seamless tile of colour wash plus pencil grain, made once per colour and strength.
+ * Fills are painted with it as a pattern, so a fill costs a handful of draw calls however big
+ * it is (painting grains one by one took seconds for a full-canvas fill).
+ */
+function fillTile(color: string, strength: number): HTMLCanvasElement {
+  const key = `${color}|${strength.toFixed(3)}`;
+  const cached = tiles.get(key);
+  if (cached) return cached;
+
+  const px = TILE_UNITS * 2;
+  const tile = document.createElement('canvas');
+  tile.width = tile.height = px;
+  const ctx = tile.getContext('2d')!;
+  ctx.fillStyle = color;
+  ctx.globalAlpha = Math.min(0.9, 0.6 * strength);
+  ctx.fillRect(0, 0, px, px);
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i++) hash = Math.imul(hash ^ key.charCodeAt(i), 16777619);
+  const rand = seededRandom(hash);
+  const grains = Math.round(TILE_UNITS * TILE_UNITS * 0.5);
+  for (let i = 0; i < grains; i++) {
+    const x = rand() * px;
+    const y = rand() * px;
+    const g = (0.8 + rand() * 1.2) * 2;
+    ctx.globalAlpha = Math.min(1, rand() * 0.45 * strength);
+    // Grains crossing an edge are drawn on the opposite side too, so the tile repeats without seams.
+    for (const dx of x + g > px ? [0, -px] : [0]) {
+      for (const dy of y + g > px ? [0, -px] : [0]) ctx.fillRect(x + dx, y + dy, g, g);
+    }
+  }
+  tiles.set(key, tile);
+  return tile;
+}
+
+let fillScratch: HTMLCanvasElement | null = null;
+
+/**
+ * Paints a bucket fill: an even wash of colour with pencil grain, like an area shaded in with a
+ * coloured pencil. The region is drawn solid into a scratch canvas, textured with the tile, then
+ * copied over. `seed` shifts the texture so neighbouring fills don't line up.
  */
 export function paintFill(ctx: CanvasRenderingContext2D, fill: FillStroke, scale: number, seed: number): void {
-  const { strength } = pencilStrength(fill.opacity);
-  const rand = seededRandom(seed);
-  const region = new Path2D();
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, area = 0;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let i = 0; i < fill.spans.length; i += 3) {
+    minY = Math.min(minY, fill.spans[i]!);
+    maxY = Math.max(maxY, fill.spans[i]! + fill.rowHeight);
+    minX = Math.min(minX, fill.spans[i + 1]!);
+    maxX = Math.max(maxX, fill.spans[i + 2]!);
+  }
+  if (minX >= maxX) return;
+  const left = Math.floor(minX * scale);
+  const top = Math.floor(minY * scale);
+  const width = Math.ceil(maxX * scale) - left;
+  const height = Math.ceil(maxY * scale) - top;
+
+  fillScratch ??= document.createElement('canvas');
+  if (fillScratch.width < width) fillScratch.width = width;
+  if (fillScratch.height < height) fillScratch.height = height;
+  const sctx = fillScratch.getContext('2d')!;
+  sctx.globalCompositeOperation = 'source-over';
+  sctx.clearRect(0, 0, width, height);
+
+  // The shape, solid. Rows overlap by a sliver so there are no seams when scaled.
+  sctx.fillStyle = '#000';
   for (let i = 0; i < fill.spans.length; i += 3) {
     const [y, x0, x1] = [fill.spans[i]!, fill.spans[i + 1]!, fill.spans[i + 2]!];
-    // A sliver of overlap between rows hides seams when the fill is scaled.
-    region.rect(x0 * scale, y * scale, (x1 - x0) * scale, fill.rowHeight * scale + 0.5);
-    minX = Math.min(minX, x0);
-    maxX = Math.max(maxX, x1);
-    minY = Math.min(minY, y);
-    maxY = Math.max(maxY, y + fill.rowHeight);
-    area += (x1 - x0) * fill.rowHeight;
+    sctx.fillRect(x0 * scale - left, y * scale - top, (x1 - x0) * scale, fill.rowHeight * scale + 0.5);
   }
 
-  ctx.save();
-  ctx.clip(region);
-  ctx.fillStyle = fill.color;
-  ctx.globalAlpha = Math.min(0.9, 0.6 * strength);
-  ctx.fillRect(minX * scale, minY * scale, (maxX - minX) * scale, (maxY - minY) * scale);
-  const grains = Math.round(area * 0.5);
-  for (let i = 0; i < grains; i++) {
-    const gx = minX + rand() * (maxX - minX);
-    const gy = minY + rand() * (maxY - minY);
-    const g = 0.8 + rand() * 1.2;
-    ctx.globalAlpha = Math.min(1, rand() * 0.45 * strength);
-    ctx.fillRect(gx * scale, gy * scale, g * scale, g * scale);
-  }
-  ctx.restore();
+  // Keep the shape, take the colour and grain from the tile.
+  const rand = seededRandom(seed);
+  const pattern = sctx.createPattern(fillTile(fill.color, pencilStrength(fill.opacity).strength), 'repeat')!;
+  pattern.setTransform(
+    new DOMMatrix().translateSelf(rand() * TILE_UNITS * scale - left, rand() * TILE_UNITS * scale - top).scaleSelf(scale / 2),
+  );
+  sctx.globalCompositeOperation = 'source-in';
+  sctx.fillStyle = pattern;
+  sctx.fillRect(0, 0, width, height);
+
+  ctx.drawImage(fillScratch, 0, 0, width, height, left, top, width, height);
 }
 
 /** Clears the canvas and paints a whole drawing. `scale` is canvas pixels per drawing unit. */

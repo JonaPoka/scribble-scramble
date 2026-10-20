@@ -29,15 +29,19 @@ function edgeMask(drawing: Drawing, underlay: HTMLImageElement | null, res: numb
       if (1 - a * (1 - lum) < UNDERLAY_EDGE_LUMINANCE) edges[i] = 1;
     }
     ctx.clearRect(0, 0, w, h);
+    // The image's pencil outline has tiny gaps between grains: thicken it by a pixel to close them.
+    thicken(edges, w, h);
   }
 
+  // The player's lines are traced solid at the width of the pencil's dense core, so the fill
+  // can't leak through the grain and still reaches right up to the visible line.
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.strokeStyle = ctx.fillStyle = '#000';
   for (const stroke of drawing.strokes) {
     if (stroke.tool === 'fill') continue;
     ctx.globalCompositeOperation = stroke.tool === 'eraser' ? 'destination-out' : 'source-over';
-    ctx.lineWidth = Math.max(1, stroke.size * (stroke.tool === 'eraser' ? 1 : 0.9) * res);
+    ctx.lineWidth = Math.max(1, stroke.size * (stroke.tool === 'eraser' ? 1 : 0.6) * res);
     const p = stroke.points;
     ctx.beginPath();
     ctx.moveTo(p[0]! * res, p[1]! * res);
@@ -47,19 +51,21 @@ function edgeMask(drawing: Drawing, underlay: HTMLImageElement | null, res: numb
   }
   const lines = ctx.getImageData(0, 0, w, h).data;
   for (let i = 0; i < w * h; i++) if (lines[i * 4 + 3]! > 128) edges[i] = 1;
+  return edges;
+}
 
-  // Thicken edges by one pixel so hairline gaps in outlines don't let the fill through.
-  const thick = edges.slice();
+/** Grows marked pixels by one in each direction, in place. */
+function thicken(mask: Uint8Array, w: number, h: number): void {
+  const source = mask.slice();
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (!edges[y * w + x]) continue;
-      if (x > 0) thick[y * w + x - 1] = 1;
-      if (x < w - 1) thick[y * w + x + 1] = 1;
-      if (y > 0) thick[(y - 1) * w + x] = 1;
-      if (y < h - 1) thick[(y + 1) * w + x] = 1;
+      if (!source[y * w + x]) continue;
+      if (x > 0) mask[y * w + x - 1] = 1;
+      if (x < w - 1) mask[y * w + x + 1] = 1;
+      if (y > 0) mask[(y - 1) * w + x] = 1;
+      if (y < h - 1) mask[(y + 1) * w + x] = 1;
     }
   }
-  return thick;
 }
 
 /**
