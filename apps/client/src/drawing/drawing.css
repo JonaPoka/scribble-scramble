@@ -1,18 +1,24 @@
 /* Drawing system: canvas, tools, colour picker and the character editor. Values come from tokens.css. */
 
 /* ---------- Canvas ---------- */
-.draw-canvas { position: relative; width: 100%; }
-.draw-canvas canvas {
-  display: block;
+.draw-canvas {
+  position: relative;
   width: 100%;
-  height: auto;
   background: var(--panel);
   border: var(--stroke-md) solid var(--outline);
   border-radius: var(--radius-lg);
   box-shadow: inset 3px 3px 0 var(--paper-line);
+}
+.draw-canvas canvas {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: calc(var(--radius-lg) - var(--stroke-md));
   touch-action: none;
   cursor: crosshair;
 }
+.draw-canvas canvas.draw-canvas__underlay { position: absolute; inset: 0; height: 100%; pointer-events: none; }
 .draw-canvas:hover canvas { cursor: none; }
 .draw-canvas--off canvas, .draw-canvas--off:hover canvas { cursor: default; }
 .draw-cursor {
@@ -45,7 +51,7 @@
 .draw-tool:hover:not(:disabled) { transform: translateY(-2px); }
 .draw-tool[aria-pressed="true"], .draw-tool[aria-checked="true"] { background: var(--sunny); color: var(--on-crayon); border-color: var(--outline); box-shadow: var(--drop-sm); }
 .draw-tool:disabled { opacity: .35; cursor: not-allowed; }
-.draw-tool:focus-visible, .draw-swatch:focus-visible, .char-template:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.draw-tool:focus-visible, .draw-swatch:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .draw-size__dot { display: block; border-radius: 50%; border: var(--stroke-thin) solid var(--outline); }
 
 /* ---------- Colour picker ---------- */
@@ -69,29 +75,25 @@
 
 /* ---------- Character editor ---------- */
 .char-editor { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
-.char-editor__templates { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.char-template {
-  width: 52px; height: 52px;
-  display: grid; place-items: center;
-  padding: 0;
-  font: 700 26px/1 var(--font-body);
-  color: var(--ink-soft);
-  background: var(--panel);
-  border: var(--stroke-thin) solid var(--outline);
-  border-radius: var(--wobble-blob);
-  box-shadow: var(--drop-sm);
-  cursor: pointer;
-  overflow: hidden;
-  transition: transform 120ms cubic-bezier(.34, 1.56, .64, 1);
-}
-.char-template:hover { transform: translateY(-2px) rotate(var(--tilt-right)); }
-.char-template:active { transform: translate(2px, 2px); box-shadow: none; }
-.char-template--blank { border-style: dashed; box-shadow: none; }
-.char-editor__canvas { position: relative; width: min(320px, 100%); }
+.char-editor__canvas { position: relative; width: min(300px, 100%); align-self: center; }
 .char-editor__guide {
   position: absolute;
   inset: 4%;
-  border: var(--stroke-thin) dashed var(--paper-line);
+  border: var(--stroke-thin) dashed var(--ink-soft);
   border-radius: 50%;
+  opacity: .35;
   pointer-events: none;
 }
+
+/* ---------- Character popup ---------- */
+.char-dialog {
+  width: min(420px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow: auto;
+  margin: auto;
+  color: var(--ink);
+}
+.char-dialog[open] { display: flex; flex-direction: column; gap: var(--space-3); animation: ss-pop 240ms cubic-bezier(.34, 1.56, .64, 1); }
+.char-dialog::backdrop { background: rgba(43, 29, 20, .45); }
+.char-dialog .ss-panel__title { margin: 0; }
+.char-dialog__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-2); }

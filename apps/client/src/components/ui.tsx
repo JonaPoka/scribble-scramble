@@ -1,9 +1,9 @@
 import type { MinigameInfo, PublicPlayer } from '@scribble/shared';
 import type { CSSProperties, ReactNode } from 'react';
-import { DrawingView } from '../drawing';
+import { AVATAR_BODY, DrawingView } from '../drawing';
 import { useAvatar } from '../store';
 import { useCountdown } from '../useCountdown';
-import { Face, Icon } from './Icon';
+import { Icon } from './Icon';
 
 /** Sets the `--c` crayon custom property used by avatars, splashes and cards. */
 export function crayonStyle(crayon: string): CSSProperties {
@@ -12,12 +12,12 @@ export function crayonStyle(crayon: string): CSSProperties {
 
 const AVATAR_PX = { sm: 36, md: 52, lg: 76 } as const;
 
-/** A player's drawn character on their crayon colour. Falls back to a doodle face if they have no drawing. */
+/** A player's drawn character (on the shared body) over their crayon colour. No drawing yet: just the body. */
 export function Avatar({ player, small, size = small ? 'sm' : 'md' }: { player: Pick<PublicPlayer, 'id' | 'color'>; small?: boolean; size?: keyof typeof AVATAR_PX }) {
   const drawing = useAvatar(player.id);
   return (
-    <span className={`ss-avatar ss-avatar--${size}${drawing ? ' ss-avatar--drawn' : ''}`} style={crayonStyle(player.color)}>
-      {drawing ? <DrawingView drawing={drawing} size={AVATAR_PX[size]} /> : <Face face="smile" />}
+    <span className={`ss-avatar ss-avatar--${size} ss-avatar--drawn`} style={crayonStyle(player.color)}>
+      <DrawingView drawing={drawing ?? AVATAR_BODY} underlay={drawing ? AVATAR_BODY : undefined} size={AVATAR_PX[size]} />
     </span>
   );
 }

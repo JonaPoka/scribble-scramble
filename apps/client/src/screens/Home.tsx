@@ -1,9 +1,11 @@
-import { AVATAR_LIMITS, NAME_MAX_LENGTH, ROOM_CODE_LENGTH, sanitizeDrawing, type Drawing } from '@scribble/shared';
-import { useCallback, useState, type CSSProperties, type FormEvent } from 'react';
-import { CharacterEditor, randomTemplate } from '../drawing';
+import { AVATAR_LIMITS, emptyDrawing, NAME_MAX_LENGTH, ROOM_CODE_LENGTH, sanitizeDrawing, type Drawing } from '@scribble/shared';
+import { useState, type CSSProperties, type FormEvent } from 'react';
+import { Icon } from '../components/Icon';
+import { AVATAR_BODY, CharacterDialog, DrawingView } from '../drawing';
 import { actions } from '../store';
 
-const PROFILE_KEY = 'scribble-scramble:profile:v2';
+// v3: characters are drawn on the shared body, so older saved drawings (full animals) are dropped.
+const PROFILE_KEY = 'scribble-scramble:profile:v3';
 
 interface Profile {
   name: string;
@@ -15,10 +17,10 @@ function loadProfile(): Profile {
     const saved = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? '{}');
     return {
       name: typeof saved.name === 'string' ? saved.name : '',
-      avatar: sanitizeDrawing(saved.avatar, AVATAR_LIMITS) ?? randomTemplate().drawing,
+      avatar: sanitizeDrawing(saved.avatar, AVATAR_LIMITS) ?? emptyDrawing(),
     };
   } catch {
-    return { name: '', avatar: randomTemplate().drawing };
+    return { name: '', avatar: emptyDrawing() };
   }
 }
 
@@ -37,8 +39,13 @@ export function Home() {
   const [code, setCode] = useState(() => new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
 
-  const onAvatarChange = useCallback((drawing: Drawing) => setAvatar(drawing), []);
+  const saveAvatar = (drawing: Drawing) => {
+    setAvatar(drawing);
+    saveProfile({ name, avatar: drawing });
+    setEditing(false);
+  };
 
   async function run(action: (profile: Profile) => ReturnType<typeof actions.createRoom>) {
     if (!name.trim()) {
@@ -69,25 +76,29 @@ export function Home() {
       </header>
 
       <section className="ss-panel ss-panel--tape home__card" style={{ '--tilt': 'var(--tilt-left)' } as CSSProperties}>
-        <div className="home__character">
-          <h2 className="ss-panel__title">Your character</h2>
-          <p className="note">pick one, then draw on it or erase bits</p>
-          <CharacterEditor value={initial.avatar} onChange={onAvatarChange} />
-        </div>
-
-        <div className="ss-stack home__form">
-          <label className="ss-field" htmlFor="name">
-            <span className="ss-field__label">Your name</span>
-            <input
-              className="ss-input"
-              id="name"
-              value={name}
-              maxLength={NAME_MAX_LENGTH}
-              placeholder="e.g. Doodlebug"
-              autoComplete="nickname"
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
+        <div className="ss-stack">
+          <div className="home__you">
+            <button type="button" className="home__portrait" onClick={() => setEditing(true)} aria-label="Draw your character">
+              <DrawingView drawing={avatar} underlay={AVATAR_BODY} size={96} alt="" />
+            </button>
+            <div className="ss-stack home__you-fields">
+              <label className="ss-field" htmlFor="name">
+                <span className="ss-field__label">Your name</span>
+                <input
+                  className="ss-input"
+                  id="name"
+                  value={name}
+                  maxLength={NAME_MAX_LENGTH}
+                  placeholder="e.g. Doodlebug"
+                  autoComplete="nickname"
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </label>
+              <button type="button" className="ss-btn ss-btn--ghost home__draw" onClick={() => setEditing(true)}>
+                <Icon name="pencil" /> {avatar.strokes.length ? 'Edit character' : 'Draw your character'}
+              </button>
+            </div>
+          </div>
 
           <button className="ss-btn ss-btn--go ss-btn--big" type="button" onClick={create} disabled={busy}>
             Create a room
@@ -124,6 +135,8 @@ export function Home() {
           </a>
         </div>
       </section>
+
+      <CharacterDialog open={editing} value={avatar} onSave={saveAvatar} onClose={() => setEditing(false)} />
     </main>
   );
 }

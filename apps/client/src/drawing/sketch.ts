@@ -4,7 +4,7 @@ type Pt = [number, number];
 
 /**
  * Builds drawings from code: outlines, lines and scribbled fills, all made of ordinary pencil
- * strokes. Used for the template characters; useful for any pre-made art (prompts, examples).
+ * strokes. Used for the avatar body; useful for any pre-made art (prompts, examples).
  */
 export class Sketch {
   private readonly strokes: Stroke[] = [];

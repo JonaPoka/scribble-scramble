@@ -11,6 +11,8 @@ export interface DrawingCanvasProps {
   size: number;
   /** Turns input off (another player's turn, results phase). The drawing still shows. */
   disabled?: boolean;
+  /** Painted underneath on its own layer that the eraser can't touch (e.g. the avatar body). */
+  underlay?: Drawing;
   /** Called as the current stroke grows. Use it to stream a live stroke to other players. */
   onStrokeProgress?: (stroke: Stroke) => void;
   /** Stop accepting new strokes or points past these limits (match the server's DrawingLimits). */
@@ -35,6 +37,7 @@ export function DrawingCanvas({
   color,
   size,
   disabled,
+  underlay,
   onStrokeProgress,
   maxStrokes = Infinity,
   maxPoints = Infinity,
@@ -42,6 +45,9 @@ export function DrawingCanvas({
   className,
 }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const underlayRef = useRef<HTMLCanvasElement>(null);
+  const underlayDrawingRef = useRef(underlay);
+  underlayDrawingRef.current = underlay;
   const scaleRef = useRef(1);
   const drawingRef = useRef(drawing);
   drawingRef.current = drawing;
@@ -57,6 +63,16 @@ export function DrawingCanvas({
     paintedRef.current = drawingRef.current.strokes;
   }, []);
 
+  const repaintUnderlay = useCallback(() => {
+    const canvas = underlayRef.current;
+    const top = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !top || !ctx || !underlayDrawingRef.current) return;
+    canvas.width = top.width;
+    canvas.height = top.height;
+    renderDrawing(ctx, underlayDrawingRef.current, scaleRef.current);
+  }, []);
+
   // Match the canvas's pixel size to its on-screen size (sharp on high-DPI screens).
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -69,15 +85,20 @@ export function DrawingCanvas({
       canvas.width = px;
       canvas.height = Math.round((px * drawingRef.current.height) / drawingRef.current.width);
       scaleRef.current = px / drawingRef.current.width;
+      repaintUnderlay();
       repaint();
     };
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [repaint]);
+  }, [repaint, repaintUnderlay]);
 
-  // Repaint when the drawing changes from outside (undo, clear, template, remote strokes).
+  useEffect(() => {
+    repaintUnderlay();
+  }, [underlay, repaintUnderlay]);
+
+  // Repaint when the drawing changes from outside (undo, clear, remote strokes).
   useEffect(() => {
     if (drawing.strokes !== paintedRef.current) repaint();
   }, [drawing, repaint]);
@@ -149,6 +170,7 @@ export function DrawingCanvas({
 
   return (
     <div className={['draw-canvas', disabled && 'draw-canvas--off', className].filter(Boolean).join(' ')}>
+      {underlay && <canvas ref={underlayRef} className="draw-canvas__underlay" aria-hidden="true" />}
       <canvas
         ref={canvasRef}
         role="img"

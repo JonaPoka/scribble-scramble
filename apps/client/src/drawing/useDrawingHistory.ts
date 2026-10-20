@@ -8,8 +8,8 @@ interface History {
 }
 
 /**
- * A drawing with undo and redo. Every `commit` (a finished stroke, a cleared canvas, a loaded
- * template) is one undo step.
+ * A drawing with undo and redo. Every `commit` (a finished stroke, a cleared canvas, a drawing
+ * loaded from elsewhere) is one undo step.
  */
 export function useDrawingHistory(initial: Drawing | (() => Drawing), limit = 80) {
   const [history, setHistory] = useState<History>(() => ({

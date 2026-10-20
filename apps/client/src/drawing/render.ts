@@ -117,26 +117,52 @@ export function renderDrawing(ctx: CanvasRenderingContext2D, drawing: Drawing, s
   });
 }
 
-const imageCache = new WeakMap<Drawing, Map<number, string>>();
+const imageCache = new WeakMap<Drawing, Map<string, string>>();
+const underlayIds = new WeakMap<Drawing, number>();
+let nextUnderlayId = 1;
 
-/**
- * Renders a drawing to a PNG data URL, `px` pixels wide. Cached per drawing object and size,
- * so showing the same avatar in many places costs one render.
- */
-export function drawingToDataUrl(drawing: Drawing, px: number): string {
-  let sizes = imageCache.get(drawing);
-  if (!sizes) imageCache.set(drawing, (sizes = new Map()));
-  const cached = sizes.get(px);
-  if (cached) return cached;
-
+function makeCanvas(drawing: Drawing, px: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = px;
   canvas.height = Math.round((px * drawing.height) / drawing.width);
+  return canvas;
+}
+
+/**
+ * Renders a drawing to a PNG data URL, `px` pixels wide, optionally on top of an `underlay`
+ * (like the avatar body). The underlay is painted on its own layer, so the drawing's eraser
+ * strokes don't cut into it. Cached per drawing, size and underlay, so showing the same avatar
+ * in many places costs one render.
+ */
+export function drawingToDataUrl(drawing: Drawing, px: number, underlay?: Drawing): string {
+  let underlayId = 0;
+  if (underlay) {
+    underlayId = underlayIds.get(underlay) ?? nextUnderlayId++;
+    underlayIds.set(underlay, underlayId);
+  }
+  const key = `${px}:${underlayId}`;
+  let sizes = imageCache.get(drawing);
+  if (!sizes) imageCache.set(drawing, (sizes = new Map()));
+  const cached = sizes.get(key);
+  if (cached) return cached;
+
+  const canvas = makeCanvas(drawing, px);
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
-  renderDrawing(ctx, drawing, px / drawing.width);
+  const scale = px / drawing.width;
+  if (underlay) {
+    renderDrawing(ctx, underlay, scale);
+    const top = makeCanvas(drawing, px);
+    const topCtx = top.getContext('2d');
+    if (topCtx) {
+      renderDrawing(topCtx, drawing, scale);
+      ctx.drawImage(top, 0, 0);
+    }
+  } else {
+    renderDrawing(ctx, drawing, scale);
+  }
   const url = canvas.toDataURL('image/png');
-  sizes.set(px, url);
+  sizes.set(key, url);
   return url;
 }
 

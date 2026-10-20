@@ -9,7 +9,16 @@ function bucket(px: number): number {
   return 1024;
 }
 
+interface DrawingViewProps {
+  drawing: Drawing;
+  size: number;
+  /** Painted underneath on its own layer (e.g. the avatar body). */
+  underlay?: Drawing;
+  alt?: string;
+  className?: string;
+}
+
 /** A read-only drawing shown as an image (avatars, thumbnails, galleries of finished drawings). */
-export function DrawingView({ drawing, size, alt = '', className }: { drawing: Drawing; size: number; alt?: string; className?: string }) {
-  return <img className={className} src={drawingToDataUrl(drawing, bucket(size))} width={size} height={Math.round((size * drawing.height) / drawing.width)} alt={alt} draggable={false} />;
+export function DrawingView({ drawing, size, underlay, alt = '', className }: DrawingViewProps) {
+  return <img className={className} src={drawingToDataUrl(drawing, bucket(size), underlay)} width={size} height={Math.round((size * drawing.height) / drawing.width)} alt={alt} draggable={false} />;
 }
