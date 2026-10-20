@@ -24,20 +24,29 @@ body { min-height: 100dvh; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ss-panel hr { margin: var(--space-6) 0; }
 
+/* ---------- Drawn avatars ---------- */
+.ss-avatar--drawn { overflow: hidden; }
+.ss-avatar--drawn img { display: block; width: 100%; height: 100%; }
+.ss-avatar--lg { width: 76px; height: 76px; }
+
 /* ---------- Home ---------- */
 .home { display: flex; flex-direction: column; align-items: center; gap: var(--space-8); }
 .home__hero { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); text-align: center; }
-.home__card { width: min(440px, 100%); }
+.home__card { width: min(820px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px); gap: var(--space-8); }
+.home__character { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.home__character .ss-panel__title { margin: 0; }
+.home__form { justify-content: center; }
+.home__sketchpad { align-self: center; font-size: 19px; }
 .home__card .ss-btn--big { justify-content: center; }
-.face-picker { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0; padding: 0; border: 0; }
-.face-picker legend { margin-bottom: var(--space-2); }
-.face-picker__option { position: relative; cursor: pointer; }
-.face-picker__option input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.face-picker__option .ss-avatar { transition: transform 120ms cubic-bezier(.34, 1.56, .64, 1); }
-.face-picker__option input:checked + .ss-avatar { --c: var(--sunny); transform: scale(1.12) rotate(var(--tilt-left)); box-shadow: var(--drop-md); }
-.face-picker__option input:focus-visible + .ss-avatar { outline: 3px solid var(--focus); outline-offset: 4px; }
 .join-row { display: flex; align-items: flex-end; gap: var(--space-3); }
 .join-row .ss-field { flex: 1; min-width: 0; }
+
+/* ---------- Sketchpad ---------- */
+.sketchpad { display: flex; flex-direction: column; gap: var(--space-6); }
+.sketchpad__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.sketchpad__head .ss-btn { text-decoration: none; }
+.sketchpad__body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-6); align-items: start; }
+.sketchpad__tools { display: flex; flex-direction: column; gap: var(--space-4); }
 
 /* ---------- Lobby ---------- */
 .lobby { display: flex; flex-direction: column; gap: var(--space-8); }
@@ -68,7 +77,7 @@ body { min-height: 100dvh; }
 
 /* ---------- Phones ---------- */
 @media (max-width: 860px) {
-  .lobby__grid { grid-template-columns: 1fr; }
+  .lobby__grid, .home__card, .sketchpad__body { grid-template-columns: 1fr; }
   .game { grid-template-columns: 1fr; grid-template-areas: "bar" "stage" "rail"; min-height: 0; }
   .stage-splash { min-height: 260px; }
 }

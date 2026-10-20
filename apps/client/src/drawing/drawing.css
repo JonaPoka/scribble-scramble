@@ -1,0 +1,97 @@
+/* Drawing system: canvas, tools, colour picker and the character editor. Values come from tokens.css. */
+
+/* ---------- Canvas ---------- */
+.draw-canvas { position: relative; width: 100%; }
+.draw-canvas canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--panel);
+  border: var(--stroke-md) solid var(--outline);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 3px 3px 0 var(--paper-line);
+  touch-action: none;
+  cursor: crosshair;
+}
+.draw-canvas:hover canvas { cursor: none; }
+.draw-canvas--off canvas, .draw-canvas--off:hover canvas { cursor: default; }
+.draw-cursor {
+  position: absolute;
+  aspect-ratio: 1;
+  min-width: 6px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.draw-cursor--eraser { border-style: dashed; border-color: var(--ink); background: rgba(255, 255, 255, .5); }
+
+/* ---------- Tools ---------- */
+.draw-tools { display: flex; flex-direction: column; gap: var(--space-3); }
+.draw-tools__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.draw-tools__group { display: flex; gap: var(--space-1); padding: var(--space-1); background: var(--panel-sunk); border: var(--stroke-thin) solid var(--outline); border-radius: var(--wobble-btn); }
+.draw-tool {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: var(--stroke-thin) solid transparent;
+  border-radius: var(--wobble-btn);
+  cursor: pointer;
+  transition: transform 120ms cubic-bezier(.34, 1.56, .64, 1);
+}
+.draw-tool svg { width: 24px; height: 24px; }
+.draw-tool:hover:not(:disabled) { transform: translateY(-2px); }
+.draw-tool[aria-pressed="true"], .draw-tool[aria-checked="true"] { background: var(--sunny); color: var(--on-crayon); border-color: var(--outline); box-shadow: var(--drop-sm); }
+.draw-tool:disabled { opacity: .35; cursor: not-allowed; }
+.draw-tool:focus-visible, .draw-swatch:focus-visible, .char-template:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.draw-size__dot { display: block; border-radius: 50%; border: var(--stroke-thin) solid var(--outline); }
+
+/* ---------- Colour picker ---------- */
+.draw-colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: var(--space-2); }
+.draw-swatch {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 32px;
+  padding: 0;
+  background: var(--swatch);
+  border: var(--stroke-thin) solid var(--outline);
+  border-radius: var(--wobble-blob);
+  cursor: pointer;
+  transition: transform 120ms cubic-bezier(.34, 1.56, .64, 1);
+}
+.draw-swatch:hover { transform: scale(1.1); }
+.draw-swatch[aria-checked="true"], .draw-swatch.is-picked { transform: scale(1.15) rotate(var(--tilt-left)); border-width: var(--stroke-md); box-shadow: var(--drop-sm); }
+.draw-swatch--custom { background: conic-gradient(#ff5d4f, #ffd23f, #63d471, #4cc4f0, #a07bff, #ff86c2, #ff5d4f); }
+.draw-swatch--custom.is-picked { background: var(--swatch); }
+.draw-swatch--custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+
+/* ---------- Character editor ---------- */
+.char-editor { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.char-editor__templates { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.char-template {
+  width: 52px; height: 52px;
+  display: grid; place-items: center;
+  padding: 0;
+  font: 700 26px/1 var(--font-body);
+  color: var(--ink-soft);
+  background: var(--panel);
+  border: var(--stroke-thin) solid var(--outline);
+  border-radius: var(--wobble-blob);
+  box-shadow: var(--drop-sm);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 120ms cubic-bezier(.34, 1.56, .64, 1);
+}
+.char-template:hover { transform: translateY(-2px) rotate(var(--tilt-right)); }
+.char-template:active { transform: translate(2px, 2px); box-shadow: none; }
+.char-template--blank { border-style: dashed; box-shadow: none; }
+.char-editor__canvas { position: relative; width: min(320px, 100%); }
+.char-editor__guide {
+  position: absolute;
+  inset: 4%;
+  border: var(--stroke-thin) dashed var(--paper-line);
+  border-radius: 50%;
+  pointer-events: none;
+}

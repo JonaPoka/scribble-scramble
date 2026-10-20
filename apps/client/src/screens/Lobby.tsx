@@ -48,7 +48,7 @@ export function Lobby({ room, playerId }: { room: RoomState; playerId: string })
           </h2>
           <div className="ss-stack">
             {room.players.map((p) => (
-              <PlayerChip key={p.id} player={p} isMe={p.id === playerId} badge={p.isHost ? <Icon name="crown" /> : undefined} />
+              <PlayerChip key={p.id} player={p} large isMe={p.id === playerId} badge={p.isHost ? <Icon name="crown" /> : undefined} />
             ))}
           </div>
           <hr />

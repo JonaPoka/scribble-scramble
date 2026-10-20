@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import {
-  AVATAR_FACES,
+  AVATAR_LIMITS,
   CRAYONS,
   MAX_PLAYERS,
   NAME_MAX_LENGTH,
+  sanitizeDrawing,
   type AckResult,
-  type AvatarFace,
+  type Drawing,
   type JoinResult,
   type MinigameContext,
   type MinigameInstance,
@@ -46,6 +47,8 @@ function cleanName(raw: unknown): string {
 
 export class Room {
   private readonly players = new Map<string, Player>();
+  /** Drawn characters by player id. Sent separately from room state because they are large. */
+  private readonly avatars = new Map<string, Drawing>();
   private hostId: string | null = null;
   private phase: RoomPhase = 'lobby';
   private round: RoundInfo | null = null;
@@ -67,7 +70,7 @@ export class Room {
     return ![...this.players.values()].some((p) => p.connected);
   }
 
-  addPlayer(socket: GameSocket, payload: { name?: unknown; face?: unknown }): AckResult<JoinResult> {
+  addPlayer(socket: GameSocket, payload: { name?: unknown; avatar?: unknown }): AckResult<JoinResult> {
     let name = cleanName(payload?.name);
     if (!name) return { ok: false, error: 'Pick a name first.' };
     if (this.players.size >= MAX_PLAYERS) return { ok: false, error: `This room is full (${MAX_PLAYERS} players).` };
@@ -79,15 +82,20 @@ export class Room {
 
     const usedColors = new Set([...this.players.values()].map((p) => p.color));
     const color = CRAYONS.find((c) => !usedColors.has(c)) ?? CRAYONS[0];
-    const face: AvatarFace = AVATAR_FACES.includes(payload?.face as AvatarFace) ? (payload.face as AvatarFace) : 'smile';
+    // An invalid or oversized drawing is dropped; that player shows the fallback face instead.
+    const avatar = sanitizeDrawing(payload?.avatar, AVATAR_LIMITS);
 
-    const player: Player = { id: randomUUID(), socketId: socket.id, name, color, face, score: 0, connected: true };
+    const player: Player = { id: randomUUID(), socketId: socket.id, name, color, score: 0, connected: true };
     this.players.set(player.id, player);
     this.hostId ??= player.id;
+    if (avatar) this.avatars.set(player.id, avatar);
 
     socket.join(this.code);
     socket.data.playerId = player.id;
     socket.data.roomCode = this.code;
+    // Avatars go out before the state that lists the new player, so nobody sees a blank.
+    socket.emit('room:avatars', Object.fromEntries(this.avatars));
+    if (avatar) socket.to(this.code).emit('room:avatars', { [player.id]: avatar });
     this.broadcast();
     return { ok: true, data: { code: this.code, playerId: player.id } };
   }
@@ -98,6 +106,7 @@ export class Room {
 
     if (this.phase === 'lobby' || reason === 'left') {
       this.players.delete(playerId);
+      this.avatars.delete(playerId);
     } else {
       // Keep their score on the board for the rest of the game.
       player.connected = false;
@@ -122,7 +131,11 @@ export class Room {
     if (this.phase !== 'lobby' && this.phase !== 'finished') return 'The game is already running.';
     if (this.catalog.size === 0) return 'No minigames are installed. Add one to the minigames folder.';
 
-    for (const [id, p] of this.players) if (!p.connected) this.players.delete(id);
+    for (const [id, p] of this.players) {
+      if (p.connected) continue;
+      this.players.delete(id);
+      this.avatars.delete(id);
+    }
     if (this.players.size < this.options.minPlayers) return `You need at least ${this.options.minPlayers} players to start.`;
 
     for (const p of this.players.values()) p.score = 0;

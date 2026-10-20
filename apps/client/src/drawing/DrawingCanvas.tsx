@@ -1,0 +1,168 @@
+import type { Drawing, DrawingTool, Stroke } from '@scribble/shared';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { countPoints, renderDrawing, StrokePainter, strokeSeed } from './render';
+
+export interface DrawingCanvasProps {
+  drawing: Drawing;
+  /** Called with the new drawing each time a stroke is finished. */
+  onChange?: (drawing: Drawing) => void;
+  tool: DrawingTool;
+  color: string;
+  size: number;
+  /** Turns input off (another player's turn, results phase). The drawing still shows. */
+  disabled?: boolean;
+  /** Called as the current stroke grows. Use it to stream a live stroke to other players. */
+  onStrokeProgress?: (stroke: Stroke) => void;
+  /** Stop accepting new strokes or points past these limits (match the server's DrawingLimits). */
+  maxStrokes?: number;
+  maxPoints?: number;
+  /** Accessible name, e.g. "Draw your character". */
+  label: string;
+  className?: string;
+}
+
+/** Points closer than this (in drawing units) to the previous one are skipped. */
+const MIN_POINT_GAP = 1.5;
+
+/**
+ * The drawing surface used by every drawing feature. It owns pointer input and painting;
+ * the parent owns the drawing (pair it with useDrawingHistory for undo).
+ */
+export function DrawingCanvas({
+  drawing,
+  onChange,
+  tool,
+  color,
+  size,
+  disabled,
+  onStrokeProgress,
+  maxStrokes = Infinity,
+  maxPoints = Infinity,
+  label,
+  className,
+}: DrawingCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scaleRef = useRef(1);
+  const drawingRef = useRef(drawing);
+  drawingRef.current = drawing;
+  /** The strokes array currently painted on the canvas, to skip needless full re-renders. */
+  const paintedRef = useRef<Stroke[] | null>(null);
+  const activeRef = useRef<{ pointerId: number; stroke: Stroke; painter: StrokePainter; budget: number } | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+
+  const repaint = useCallback(() => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    renderDrawing(ctx, drawingRef.current, scaleRef.current);
+    paintedRef.current = drawingRef.current.strokes;
+  }, []);
+
+  // Match the canvas's pixel size to its on-screen size (sharp on high-DPI screens).
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const resize = () => {
+      const cssWidth = canvas.getBoundingClientRect().width;
+      if (!cssWidth) return;
+      const px = Math.round(cssWidth * Math.min(window.devicePixelRatio || 1, 2));
+      if (canvas.width === px) return;
+      canvas.width = px;
+      canvas.height = Math.round((px * drawingRef.current.height) / drawingRef.current.width);
+      scaleRef.current = px / drawingRef.current.width;
+      repaint();
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [repaint]);
+
+  // Repaint when the drawing changes from outside (undo, clear, template, remote strokes).
+  useEffect(() => {
+    if (drawing.strokes !== paintedRef.current) repaint();
+  }, [drawing, repaint]);
+
+  const toLocal = (e: { clientX: number; clientY: number }) => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * drawing.width,
+      y: ((e.clientY - rect.top) / rect.height) * drawing.height,
+    };
+  };
+
+  const onPointerDown = (e: PointerEvent<HTMLCanvasElement>) => {
+    if (disabled || e.button !== 0 || activeRef.current) return;
+    if (drawing.strokes.length >= maxStrokes) return;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+
+    const { x, y } = toLocal(e);
+    const stroke: Stroke = { tool, color, size, points: [x, y] };
+    const painter = new StrokePainter(ctx, stroke, scaleRef.current, strokeSeed(drawing.strokes.length));
+    painter.addPoint(x, y);
+    activeRef.current = { pointerId: e.pointerId, stroke, painter, budget: maxPoints - countPoints(drawing) - 1 };
+    onStrokeProgress?.(stroke);
+  };
+
+  const onPointerMove = (e: PointerEvent<HTMLCanvasElement>) => {
+    setCursor(e.pointerType === 'mouse' ? toLocal(e) : null);
+    const active = activeRef.current;
+    if (!active || active.pointerId !== e.pointerId) return;
+
+    // Coalesced events give every point the pointer passed through, for smooth fast strokes.
+    const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent];
+    const { points } = active.stroke;
+    let added = false;
+    for (const ev of events.length ? events : [e.nativeEvent]) {
+      if (active.budget <= 0) break;
+      const { x, y } = toLocal(ev);
+      const lx = points[points.length - 2]!;
+      const ly = points[points.length - 1]!;
+      if (Math.hypot(x - lx, y - ly) < MIN_POINT_GAP) continue;
+      points.push(x, y);
+      active.painter.addPoint(x, y);
+      active.budget -= 1;
+      added = true;
+    }
+    if (added) onStrokeProgress?.(active.stroke);
+  };
+
+  const finish = (e: PointerEvent<HTMLCanvasElement>) => {
+    const active = activeRef.current;
+    if (!active || active.pointerId !== e.pointerId) return;
+    activeRef.current = null;
+    const strokes = [...drawingRef.current.strokes, active.stroke];
+    paintedRef.current = strokes;
+    onChange?.({ ...drawingRef.current, strokes });
+  };
+
+  const cursorStyle: CSSProperties | undefined = cursor
+    ? {
+        left: `${(cursor.x / drawing.width) * 100}%`,
+        top: `${(cursor.y / drawing.height) * 100}%`,
+        width: `${(size / drawing.width) * 100}%`,
+        borderColor: tool === 'eraser' ? undefined : color,
+      }
+    : undefined;
+
+  return (
+    <div className={['draw-canvas', disabled && 'draw-canvas--off', className].filter(Boolean).join(' ')}>
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label={label}
+        style={{ aspectRatio: `${drawing.width} / ${drawing.height}` }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={finish}
+        onPointerCancel={finish}
+        onPointerLeave={() => setCursor(null)}
+      />
+      {cursorStyle && !disabled && (
+        <span className={tool === 'eraser' ? 'draw-cursor draw-cursor--eraser' : 'draw-cursor'} style={cursorStyle} aria-hidden="true" />
+      )}
+    </div>
+  );
+}

@@ -1,4 +1,5 @@
-import type { AvatarFace, PublicPlayer } from './players';
+import type { Drawing } from './drawing';
+import type { PublicPlayer } from './players';
 import type { MinigameInfo } from './sdk';
 
 export type RoomPhase = 'lobby' | 'intro' | 'playing' | 'results' | 'finished';
@@ -47,7 +48,8 @@ export type Ack<T> = (result: AckResult<T>) => void;
 
 export interface JoinPayload {
   name: string;
-  face: AvatarFace;
+  /** The player's drawn character (AVATAR_SIZE square). Invalid drawings are dropped. */
+  avatar: Drawing | null;
 }
 
 export interface JoinResult {
@@ -65,6 +67,8 @@ export interface ClientToServerEvents {
 
 export interface ServerToClientEvents {
   'room:state': (state: RoomState) => void;
+  /** Drawn characters by player id. Sent in full when you join, then one at a time as others join. */
+  'room:avatars': (avatars: Record<string, Drawing>) => void;
   'game:event': (event: MinigameEvent) => void;
 }
 

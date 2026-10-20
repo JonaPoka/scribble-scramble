@@ -2,7 +2,7 @@
 
 A realtime browser party game. Up to 8 friends join a room with a 4-letter code, then race through short minigames that rotate every round: reflex tests, drawing, guessing, bluffing and button-mashing. Think skribbl.io meets WarioWare and Jackbox, drawn in a sketchbook.
 
-**Playable now:** lobby with room codes and invite links, a 5-round game loop with random minigames, live scores, and two minigames: **Quick Draw** and **Color Clash**. New minigames are drop-in folders.
+**Playable now:** lobby with room codes and invite links, a 5-round game loop with random minigames, live scores, and two minigames: **Quick Draw** and **Color Clash**. New minigames are drop-in folders. Players draw their own character, starting from a template or a blank page.
 
 ## Getting started
 
@@ -29,7 +29,7 @@ Open http://localhost:5173. In development you can start a game alone; open a se
 minigames/        One folder per minigame, loaded automatically (see below)
 packages/shared   Types shared by both sides: socket events, room state and the minigame SDK
 apps/server       Node + Express + Socket.IO. Rooms, the round loop and the minigame loader
-apps/client       React + Vite. Screens, the design-system styles and the UI kit minigames use
+apps/client       React + Vite. Screens, the design-system styles, the drawing system and the UI kit minigames use
 ```
 
 - The server owns all game state. Clients send inputs (`game:input`) and render what the server broadcasts (`room:state`, `game:event`).
@@ -45,6 +45,10 @@ npm run new-minigame hot-potato
 ```
 
 That copies `minigames/_template`, a small working game, so you can play it right away and change it from there. Folders starting with `_` are skipped. The full guide is [docs/creating-minigames.md](docs/creating-minigames.md).
+
+## Drawing
+
+Player characters, the `/sketchpad` page and future drawing minigames share one drawing system: a pencil brush, eraser, colour picker and undo, with drawings stored as strokes. See [apps/client/src/drawing/README.md](apps/client/src/drawing/README.md).
 
 ## Design
 

@@ -5,3 +5,19 @@
 export { Avatar, PlayerChip, Scoreboard, Stamp, Timer, crayonStyle } from './components/ui';
 export { Face, Icon, type IconName } from './components/Icon';
 export { useCountdown } from './useCountdown';
+export { useAvatar } from './store';
+// The drawing system, for drawing minigames: see src/drawing/README.md.
+export {
+  CharacterEditor,
+  ColorPicker,
+  DrawingCanvas,
+  DrawingTools,
+  DrawingView,
+  PENCIL_PALETTE,
+  DEFAULT_PENCIL_COLOR,
+  Sketch,
+  StrokePainter,
+  renderDrawing,
+  strokeSeed,
+  useDrawingHistory,
+} from './drawing';

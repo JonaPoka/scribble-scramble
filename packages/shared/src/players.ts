@@ -2,6 +2,7 @@
 export const CRAYONS = ['tomato', 'sky', 'sunny', 'grass', 'grape', 'tangerine', 'bubblegum', 'cocoa'] as const;
 export type Crayon = (typeof CRAYONS)[number];
 
+/** Doodle faces, shown only when a player has no drawn character. */
 export const AVATAR_FACES = ['smile', 'grin', 'wow', 'smirk', 'dizzy'] as const;
 export type AvatarFace = (typeof AVATAR_FACES)[number];
 
@@ -12,7 +13,6 @@ export interface PublicPlayer {
   id: string;
   name: string;
   color: Crayon;
-  face: AvatarFace;
   score: number;
   connected: boolean;
   isHost: boolean;

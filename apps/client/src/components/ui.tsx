@@ -1,5 +1,7 @@
 import type { MinigameInfo, PublicPlayer } from '@scribble/shared';
 import type { CSSProperties, ReactNode } from 'react';
+import { DrawingView } from '../drawing';
+import { useAvatar } from '../store';
 import { useCountdown } from '../useCountdown';
 import { Face, Icon } from './Icon';
 
@@ -8,19 +10,23 @@ export function crayonStyle(crayon: string): CSSProperties {
   return { '--c': `var(--${crayon})` } as CSSProperties;
 }
 
-export function Avatar({ player, small }: { player: Pick<PublicPlayer, 'color' | 'face'>; small?: boolean }) {
+const AVATAR_PX = { sm: 36, md: 52, lg: 76 } as const;
+
+/** A player's drawn character on their crayon colour. Falls back to a doodle face if they have no drawing. */
+export function Avatar({ player, small, size = small ? 'sm' : 'md' }: { player: Pick<PublicPlayer, 'id' | 'color'>; small?: boolean; size?: keyof typeof AVATAR_PX }) {
+  const drawing = useAvatar(player.id);
   return (
-    <span className={small ? 'ss-avatar ss-avatar--sm' : 'ss-avatar'} style={crayonStyle(player.color)}>
-      <Face face={player.face} />
+    <span className={`ss-avatar ss-avatar--${size}${drawing ? ' ss-avatar--drawn' : ''}`} style={crayonStyle(player.color)}>
+      {drawing ? <DrawingView drawing={drawing} size={AVATAR_PX[size]} /> : <Face face="smile" />}
     </span>
   );
 }
 
-export function PlayerChip({ player, isMe, badge }: { player: PublicPlayer; isMe?: boolean; badge?: ReactNode }) {
+export function PlayerChip({ player, isMe, badge, large }: { player: PublicPlayer; isMe?: boolean; badge?: ReactNode; large?: boolean }) {
   const meta = [player.isHost && 'host', isMe && 'you', !player.connected && 'disconnected'].filter(Boolean).join(' · ');
   return (
     <div className={player.connected ? 'ss-chip' : 'ss-chip ss-chip--out'}>
-      <Avatar player={player} />
+      <Avatar player={player} size={large ? 'lg' : 'md'} />
       <div style={{ minWidth: 0 }}>
         <div className="ss-chip__name">{player.name}</div>
         {meta && <div className="ss-chip__meta">{meta}</div>}

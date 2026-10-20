@@ -1,54 +1,64 @@
-import { AVATAR_FACES, NAME_MAX_LENGTH, ROOM_CODE_LENGTH, type AvatarFace } from '@scribble/shared';
-import { useState, type CSSProperties, type FormEvent } from 'react';
-import { Avatar } from '../components/ui';
+import { AVATAR_LIMITS, NAME_MAX_LENGTH, ROOM_CODE_LENGTH, sanitizeDrawing, type Drawing } from '@scribble/shared';
+import { useCallback, useState, type CSSProperties, type FormEvent } from 'react';
+import { CharacterEditor, randomTemplate } from '../drawing';
 import { actions } from '../store';
 
-const PROFILE_KEY = 'scribble-scramble:profile';
+const PROFILE_KEY = 'scribble-scramble:profile:v2';
 
-function loadProfile(): { name: string; face: AvatarFace } {
+interface Profile {
+  name: string;
+  avatar: Drawing;
+}
+
+function loadProfile(): Profile {
   try {
     const saved = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? '{}');
     return {
       name: typeof saved.name === 'string' ? saved.name : '',
-      face: AVATAR_FACES.includes(saved.face) ? saved.face : 'smile',
+      avatar: sanitizeDrawing(saved.avatar, AVATAR_LIMITS) ?? randomTemplate().drawing,
     };
   } catch {
-    return { name: '', face: 'smile' };
+    return { name: '', avatar: randomTemplate().drawing };
   }
 }
 
-function saveProfile(profile: { name: string; face: AvatarFace }): void {
+function saveProfile(profile: Profile): void {
   try {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   } catch {
-    // Storage can be blocked (private windows); the profile just isn't remembered.
+    // Storage can be blocked (private windows) or full; the profile just isn't remembered.
   }
 }
 
 export function Home() {
-  const [profile, setProfile] = useState(loadProfile);
+  const [initial] = useState(loadProfile);
+  const [name, setName] = useState(initial.name);
+  const [avatar, setAvatar] = useState(initial.avatar);
   const [code, setCode] = useState(() => new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function run(action: () => ReturnType<typeof actions.createRoom>) {
-    if (!profile.name.trim()) {
+  const onAvatarChange = useCallback((drawing: Drawing) => setAvatar(drawing), []);
+
+  async function run(action: (profile: Profile) => ReturnType<typeof actions.createRoom>) {
+    if (!name.trim()) {
       setError('Pick a name first.');
       return;
     }
+    const profile = { name, avatar };
     setBusy(true);
     setError(null);
     saveProfile(profile);
-    const result = await action();
+    const result = await action(profile);
     setBusy(false);
     if (!result.ok) setError(result.error);
-    else history.replaceState(null, '', `?room=${result.data.code}`);
+    else history.replaceState(null, '', `/?room=${result.data.code}`);
   }
 
-  const create = () => run(() => actions.createRoom(profile));
+  const create = () => run((p) => actions.createRoom(p));
   const join = (e: FormEvent) => {
     e.preventDefault();
-    void run(() => actions.joinRoom({ ...profile, code }));
+    void run((p) => actions.joinRoom({ ...p, code }));
   };
 
   return (
@@ -59,36 +69,25 @@ export function Home() {
       </header>
 
       <section className="ss-panel ss-panel--tape home__card" style={{ '--tilt': 'var(--tilt-left)' } as CSSProperties}>
-        <div className="ss-stack">
+        <div className="home__character">
+          <h2 className="ss-panel__title">Your character</h2>
+          <p className="note">pick one, then draw on it or erase bits</p>
+          <CharacterEditor value={initial.avatar} onChange={onAvatarChange} />
+        </div>
+
+        <div className="ss-stack home__form">
           <label className="ss-field" htmlFor="name">
             <span className="ss-field__label">Your name</span>
             <input
               className="ss-input"
               id="name"
-              value={profile.name}
+              value={name}
               maxLength={NAME_MAX_LENGTH}
               placeholder="e.g. Doodlebug"
               autoComplete="nickname"
-              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+              onChange={(e) => setName(e.target.value)}
             />
           </label>
-
-          <fieldset className="face-picker">
-            <legend className="ss-field__label">Your face</legend>
-            {AVATAR_FACES.map((face) => (
-              <label key={face} className="face-picker__option">
-                <input
-                  type="radio"
-                  name="face"
-                  value={face}
-                  checked={profile.face === face}
-                  onChange={() => setProfile({ ...profile, face })}
-                />
-                <Avatar player={{ color: 'sky', face }} />
-                <span className="visually-hidden">{face}</span>
-              </label>
-            ))}
-          </fieldset>
 
           <button className="ss-btn ss-btn--go ss-btn--big" type="button" onClick={create} disabled={busy}>
             Create a room
@@ -119,6 +118,10 @@ export function Home() {
               {error}
             </p>
           )}
+
+          <a className="home__sketchpad note" href="/sketchpad">
+            or just doodle on the sketchpad
+          </a>
         </div>
       </section>
     </main>
