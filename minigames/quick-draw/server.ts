@@ -1,12 +1,11 @@
-import { QUICK_DRAW_POINTS } from '@scribble/shared';
-import type { MinigameDefinition } from '../types';
+import { defineServer } from '@scribble/shared';
+import { POINTS_BY_PLACE, type GameEvent, type PlayerInput } from './protocol';
 
 const MIN_WAIT_MS = 1_500;
 const MAX_WAIT_MS = 5_000;
 const CLICK_WINDOW_MS = 4_000;
 
-export const quickDraw: MinigameDefinition<'quick-draw'> = {
-  id: 'quick-draw',
+export default defineServer<PlayerInput, GameEvent>({
   maxDurationMs: MAX_WAIT_MS + CLICK_WINDOW_MS + 2_000,
 
   create(ctx) {
@@ -17,7 +16,7 @@ export const quickDraw: MinigameDefinition<'quick-draw'> = {
     const finish = () => {
       const points: Record<string, number> = {};
       clicks.forEach((click, i) => {
-        points[click.playerId] = QUICK_DRAW_POINTS[Math.min(i, QUICK_DRAW_POINTS.length - 1)] ?? 0;
+        points[click.playerId] = POINTS_BY_PLACE[Math.min(i, POINTS_BY_PLACE.length - 1)] ?? 0;
       });
       ctx.emit({ type: 'standings', order: clicks, early: [...early] });
       ctx.end(points);
@@ -36,7 +35,7 @@ export const quickDraw: MinigameDefinition<'quick-draw'> = {
       },
 
       onInput(playerId, input) {
-        if (input?.type !== 'click') return;
+        if (input.type !== 'click') return;
         if (early.has(playerId) || clicks.some((c) => c.playerId === playerId)) return;
 
         if (goAt === null) {
@@ -52,4 +51,4 @@ export const quickDraw: MinigameDefinition<'quick-draw'> = {
       },
     };
   },
-};
+});

@@ -1,7 +1,8 @@
-import { CLASH_COLORS, CLASH_WORDS, type ClashColor, type ColorClashEvent } from '@scribble/shared';
+import { Stamp } from '@scribble/client/kit';
+import type { MinigameViewProps } from '@scribble/shared';
 import { useEffect } from 'react';
-import { Stamp } from '../components/ui';
-import type { MinigameViewProps } from './types';
+import { CLASH_COLORS, CLASH_WORDS, type ClashColor, type GameEvent, type PlayerInput } from './protocol';
+import './style.css';
 
 /** Each ink also has a pattern, so the game works for colour-blind players. */
 const PATTERN: Record<ClashColor, string> = {
@@ -11,9 +12,9 @@ const PATTERN: Record<ClashColor, string> = {
   grass: 'plain',
 };
 
-function derive(events: ColorClashEvent[]) {
-  let prompt: Extract<ColorClashEvent, { type: 'prompt' }> | null = null;
-  let feedback: Extract<ColorClashEvent, { type: 'feedback' }> | null = null;
+function derive(events: GameEvent[]) {
+  let prompt: Extract<GameEvent, { type: 'prompt' }> | null = null;
+  let feedback: Extract<GameEvent, { type: 'feedback' }> | null = null;
   for (const e of events) {
     if (e.type === 'prompt') prompt = e;
     else feedback = e;
@@ -21,7 +22,7 @@ function derive(events: ColorClashEvent[]) {
   return { prompt, feedback };
 }
 
-export function ColorClash({ events, phase, send }: MinigameViewProps<'color-clash'>) {
+export default function ColorClash({ events, phase, send }: MinigameViewProps<PlayerInput, GameEvent>) {
   const { prompt, feedback } = derive(events);
   const live = phase === 'playing' && prompt !== null;
 
@@ -52,7 +53,7 @@ export function ColorClash({ events, phase, send }: MinigameViewProps<'color-cla
             <span className="cc-word" style={{ color: `var(--${prompt.ink})` }}>
               {CLASH_WORDS[prompt.word]}
             </span>
-            <span className={`cc-ink-bar pattern-${PATTERN[prompt.ink]}`} style={{ background: `var(--${prompt.ink})` }} />
+            <span className={`cc-ink-bar cc-pattern-${PATTERN[prompt.ink]}`} style={{ background: `var(--${prompt.ink})` }} />
           </>
         ) : (
           <span className="note">get ready…</span>
@@ -69,7 +70,7 @@ export function ColorClash({ events, phase, send }: MinigameViewProps<'color-cla
           <button
             key={color}
             type="button"
-            className={`ss-btn cc-answer pattern-${PATTERN[color]}`}
+            className={`ss-btn cc-answer cc-pattern-${PATTERN[color]}`}
             style={{ background: `var(--${color})` }}
             disabled={!live}
             onPointerDown={() => answer(color)}

@@ -1,27 +1,12 @@
-import { MINIGAMES, type MinigameId, type PublicPlayer } from '@scribble/shared';
+import type { MinigameInfo, PublicPlayer } from '@scribble/shared';
 import type { CSSProperties, ReactNode } from 'react';
 import { useCountdown } from '../useCountdown';
-import { Face, Icon, type IconName } from './Icon';
+import { Face, Icon } from './Icon';
 
 /** Sets the `--c` crayon custom property used by avatars, splashes and cards. */
 export function crayonStyle(crayon: string): CSSProperties {
   return { '--c': `var(--${crayon})` } as CSSProperties;
 }
-
-export const MINIGAME_ICONS: Record<MinigameId, IconName> = {
-  'quick-sketch': 'pencil',
-  'quick-draw': 'stopwatch',
-  'color-clash': 'eye',
-  'hot-potato': 'bomb',
-  'whack-a-thing': 'target',
-  'closest-guess': 'target',
-  'zoom-out': 'eye',
-  'impostor-word': 'chat',
-  'last-one-standing': 'star',
-  'memory-sequence': 'star',
-  'typing-race': 'bolt',
-  'tug-of-war': 'bolt',
-};
 
 export function Avatar({ player, small }: { player: Pick<PublicPlayer, 'color' | 'face'>; small?: boolean }) {
   return (
@@ -88,8 +73,7 @@ export function Scoreboard({ players, deltas }: { players: PublicPlayer[]; delta
   );
 }
 
-export function GameSplash({ minigame, round, total, countdown }: { minigame: MinigameId; round: number; total: number; countdown: number | null }) {
-  const meta = MINIGAMES[minigame];
+export function GameSplash({ meta, round, total, countdown }: { meta: MinigameInfo; round: number; total: number; countdown: number | null }) {
   return (
     <div className="ss-splash stage-splash" style={crayonStyle(meta.crayon)}>
       <span className="ss-splash__eyebrow">
@@ -111,15 +95,14 @@ export function Stamp({ kind = 'correct', children }: { kind?: 'correct' | 'wron
   );
 }
 
-export function MinigameCard({ id, playable }: { id: MinigameId; playable: boolean }) {
-  const meta = MINIGAMES[id];
+export function MinigameCard({ meta }: { meta: MinigameInfo }) {
   return (
-    <article className={playable ? 'ss-game' : 'ss-game ss-game--soon'} style={crayonStyle(meta.crayon)}>
+    <article className="ss-game" style={crayonStyle(meta.crayon)}>
       <div className="ss-game__art">
-        <Icon name={MINIGAME_ICONS[id]} />
+        <Icon name={meta.icon} />
       </div>
       <div className="ss-game__body">
-        <span className="ss-tag">{playable ? meta.category : `${meta.category} · soon`}</span>
+        <span className="ss-tag">{meta.category}</span>
         <h3 className="ss-game__name">{meta.name}</h3>
         <p className="ss-game__rule">{meta.blurb}</p>
       </div>

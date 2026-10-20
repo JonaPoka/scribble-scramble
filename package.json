@@ -6,11 +6,13 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "minigames"
   ],
   "scripts": {
     "dev": "concurrently -k -n server,client -c yellow,cyan \"npm run dev -w @scribble/server\" \"npm run dev -w @scribble/client\"",
-    "build": "npm run build -w @scribble/client && npm run build -w @scribble/server",
+    "new-minigame": "node scripts/new-minigame.mjs",
+    "build": "npm run build -w @scribble/client",
     "start": "npm run start -w @scribble/server",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

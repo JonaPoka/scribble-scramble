@@ -4,35 +4,37 @@ import {
   CRAYONS,
   MAX_PLAYERS,
   NAME_MAX_LENGTH,
-  PLAYABLE_MINIGAMES,
   type AckResult,
   type AvatarFace,
   type JoinResult,
-  type MinigameEvent,
-  type PlayableMinigameId,
+  type MinigameContext,
+  type MinigameInstance,
   type PublicPlayer,
   type RoomPhase,
   type RoomSettings,
   type RoomState,
   type RoundInfo,
 } from '@scribble/shared';
-import { MINIGAME_REGISTRY } from './minigames';
-import type { GameServer, GameSocket, MinigameContext, MinigameDefinition, MinigameInstance } from './types';
+import type { MinigameCatalog } from './minigames';
+import type { GameServer, GameSocket } from './types';
 
 const INTRO_MS = 3_000;
 const RESULTS_MS = 4_500;
 const DEFAULT_ROUNDS = 5;
-/** Solo games are allowed in development so one browser tab can test everything. */
-const MIN_PLAYERS = process.env.NODE_ENV === 'production' ? 2 : 1;
+
+export interface RoomOptions {
+  /** Fewest connected players needed to start. 1 in development so one tab can test everything. */
+  minPlayers: number;
+}
 
 interface Player extends Omit<PublicPlayer, 'isHost'> {
   socketId: string | null;
 }
 
 interface ActiveMinigame {
-  id: PlayableMinigameId;
+  id: string;
   playerIds: readonly string[];
-  instance: MinigameInstance<PlayableMinigameId> | null;
+  instance: MinigameInstance<unknown> | null;
   timers: Set<NodeJS.Timeout>;
   ended: boolean;
 }
@@ -51,11 +53,13 @@ export class Room {
   private readonly settings: RoomSettings = { rounds: DEFAULT_ROUNDS };
   private phaseTimer: NodeJS.Timeout | null = null;
   private active: ActiveMinigame | null = null;
-  private recent: PlayableMinigameId[] = [];
+  private recent: string[] = [];
 
   constructor(
     readonly code: string,
     private readonly io: GameServer,
+    private readonly catalog: MinigameCatalog,
+    private readonly options: RoomOptions,
     private readonly onEmpty: () => void,
   ) {}
 
@@ -116,9 +120,10 @@ export class Room {
   start(playerId: string): string | null {
     if (playerId !== this.hostId) return 'Only the host can start the game.';
     if (this.phase !== 'lobby' && this.phase !== 'finished') return 'The game is already running.';
+    if (this.catalog.size === 0) return 'No minigames are installed. Add one to the minigames folder.';
 
     for (const [id, p] of this.players) if (!p.connected) this.players.delete(id);
-    if (this.players.size < MIN_PLAYERS) return `You need at least ${MIN_PLAYERS} players to start.`;
+    if (this.players.size < this.options.minPlayers) return `You need at least ${this.options.minPlayers} players to start.`;
 
     for (const p of this.players.values()) p.score = 0;
     this.lastRoundPoints = {};
@@ -134,13 +139,21 @@ export class Room {
     const { game, input } = raw as { game?: unknown; input?: unknown };
     if (game !== active.id || !active.playerIds.includes(playerId)) return;
     if (typeof input !== 'object' || input === null) return;
-    active.instance.onInput(playerId, input as never);
+    this.guard(active, 'onInput', () => active.instance?.onInput(playerId, input));
   }
 
   dispose(): void {
     if (this.phaseTimer) clearTimeout(this.phaseTimer);
     this.phaseTimer = null;
     if (this.active) this.stopActive(this.active);
+  }
+
+  private connectedPlayers(): Player[] {
+    return [...this.players.values()].filter((p) => p.connected);
+  }
+
+  private publicPlayers(): PublicPlayer[] {
+    return [...this.players.values()].map(({ socketId: _socketId, ...p }) => ({ ...p, isHost: p.id === this.hostId }));
   }
 
   private beginRound(number: number): void {
@@ -151,40 +164,56 @@ export class Room {
     this.schedule(() => this.startMinigame(minigame), INTRO_MS);
   }
 
-  /** Random minigame, avoiding the most recent ones so the same game doesn't repeat back to back. */
-  private pickMinigame(): PlayableMinigameId {
-    const avoid = new Set(this.recent.slice(-Math.floor(PLAYABLE_MINIGAMES.length / 2)));
-    const options = PLAYABLE_MINIGAMES.filter((id) => !avoid.has(id));
-    const id = options[Math.floor(Math.random() * options.length)] ?? PLAYABLE_MINIGAMES[0];
+  /** Random minigame that fits the player count, avoiding the most recent ones so games don't repeat back to back. */
+  private pickMinigame(): string {
+    const playerCount = this.connectedPlayers().length;
+    let options = [...this.catalog.values()].filter((m) => (m.info.minPlayers ?? 1) <= playerCount).map((m) => m.info.id);
+    if (options.length === 0) options = [...this.catalog.keys()];
+
+    const avoid = new Set(this.recent.slice(-Math.floor(options.length / 2)));
+    const fresh = options.filter((id) => !avoid.has(id));
+    const pool = fresh.length ? fresh : options;
+    const id = pool[Math.floor(Math.random() * pool.length)] ?? options[0]!;
     this.recent.push(id);
     return id;
   }
 
-  private startMinigame(id: PlayableMinigameId): void {
-    const def = MINIGAME_REGISTRY[id] as unknown as MinigameDefinition<PlayableMinigameId>;
+  /** Runs minigame code; if it throws, logs it and ends the round with no points instead of crashing the server. */
+  private guard(active: ActiveMinigame, where: string, fn: () => void): void {
+    try {
+      fn();
+    } catch (error) {
+      console.error(`[minigames] "${active.id}" threw in ${where}. Ending the round with no points.`, error);
+      this.finishMinigame(active, {});
+    }
+  }
+
+  private startMinigame(id: string): void {
+    const def = this.catalog.get(id)?.server;
     const active: ActiveMinigame = {
       id,
-      playerIds: [...this.players.values()].filter((p) => p.connected).map((p) => p.id),
+      playerIds: this.connectedPlayers().map((p) => p.id),
       instance: null,
       timers: new Set(),
       ended: false,
     };
 
-    const ctx: MinigameContext<PlayableMinigameId> = {
+    const ctx: MinigameContext<unknown> = {
       playerIds: active.playerIds,
+      players: this.publicPlayers(),
       emit: (event) => {
         if (active.ended) return;
-        this.io.to(this.code).emit('game:event', { game: id, event } as MinigameEvent);
+        this.io.to(this.code).emit('game:event', { game: id, event });
       },
       emitTo: (playerId, event) => {
         const socketId = this.players.get(playerId)?.socketId;
         if (active.ended || !socketId) return;
-        this.io.to(socketId).emit('game:event', { game: id, event } as MinigameEvent);
+        this.io.to(socketId).emit('game:event', { game: id, event });
       },
       setTimeout: (fn, ms) => {
         const timer = setTimeout(() => {
           active.timers.delete(timer);
-          if (!active.ended) fn();
+          if (!active.ended) this.guard(active, 'a setTimeout callback', fn);
         }, ms);
         active.timers.add(timer);
       },
@@ -202,9 +231,15 @@ export class Room {
     // Clients mount the minigame on this state, before its first event arrives.
     this.broadcast();
 
-    active.instance = def.create(ctx);
-    active.instance.start();
+    if (!def) {
+      this.finishMinigame(active, {});
+      return;
+    }
     this.schedule(() => this.finishMinigame(active, {}), def.maxDurationMs);
+    this.guard(active, 'create/start', () => {
+      active.instance = def.create(ctx);
+      active.instance.start();
+    });
   }
 
   private finishMinigame(active: ActiveMinigame, rawPoints: Record<string, number>): void {
@@ -214,7 +249,7 @@ export class Room {
 
     const points: Record<string, number> = {};
     for (const id of active.playerIds) {
-      const value = Math.max(0, Math.round(Number(rawPoints[id] ?? 0)));
+      const value = Math.max(0, Math.round(Number(rawPoints?.[id] ?? 0)));
       const player = this.players.get(id);
       if (!player || !Number.isFinite(value)) continue;
       points[id] = value;
@@ -257,10 +292,11 @@ export class Room {
     return {
       code: this.code,
       phase: this.phase,
-      players: [...this.players.values()].map(({ socketId: _socketId, ...p }) => ({ ...p, isHost: p.id === this.hostId })),
+      players: this.publicPlayers(),
       round: this.round ? { ...this.round } : null,
       lastRoundPoints: this.lastRoundPoints,
       settings: this.settings,
+      minigames: [...this.catalog.values()].map((m) => m.info),
       serverNow: Date.now(),
     };
   }

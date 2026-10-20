@@ -1,11 +1,16 @@
 import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@scribble/shared';
-import { Room } from './room';
+import type { MinigameCatalog } from './minigames';
+import { Room, type RoomOptions } from './room';
 import type { GameServer } from './types';
 
 export class RoomManager {
   private readonly rooms = new Map<string, Room>();
 
-  constructor(private readonly io: GameServer) {}
+  constructor(
+    private readonly io: GameServer,
+    private readonly catalog: MinigameCatalog,
+    private readonly options: RoomOptions,
+  ) {}
 
   create(): Room {
     let code: string;
@@ -16,7 +21,7 @@ export class RoomManager {
       ).join('');
     } while (this.rooms.has(code));
 
-    const room = new Room(code, this.io, () => this.rooms.delete(code));
+    const room = new Room(code, this.io, this.catalog, this.options, () => this.rooms.delete(code));
     this.rooms.set(code, room);
     return room;
   }

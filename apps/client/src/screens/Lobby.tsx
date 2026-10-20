@@ -1,4 +1,4 @@
-import { MAX_PLAYERS, MINIGAMES, isPlayable, type MinigameId, type RoomState } from '@scribble/shared';
+import { MAX_PLAYERS, type RoomState } from '@scribble/shared';
 import { useState, type CSSProperties } from 'react';
 import { Icon } from '../components/Icon';
 import { MinigameCard, PlayerChip } from '../components/ui';
@@ -75,10 +75,11 @@ export function Lobby({ room, playerId }: { room: RoomState; playerId: string })
         </section>
 
         <section className="lobby__games" aria-label="Minigames">
-          <h2 className="h2">Minigames</h2>
+          <h2 className="h2">Minigames ({room.minigames.length})</h2>
+          {room.minigames.length === 0 && <p className="note">no minigames installed yet. add one to the minigames folder.</p>}
           <div className="card-grid">
-            {(Object.keys(MINIGAMES) as MinigameId[]).map((id) => (
-              <MinigameCard key={id} id={id} playable={isPlayable(id)} />
+            {room.minigames.map((meta) => (
+              <MinigameCard key={meta.id} meta={meta} />
             ))}
           </div>
         </section>

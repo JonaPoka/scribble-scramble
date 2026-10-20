@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./kit": "./src/kit.ts"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

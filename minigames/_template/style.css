@@ -1,0 +1,6 @@
+/* Styles for this minigame only. Prefix every class (here tpl-) so it can't clash with other minigames.
+   Use design tokens (var(--sunny), var(--wobble-card), var(--drop-md)) and the ss- classes, never raw colours. */
+
+.tpl { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
+.tpl-button { min-width: 240px; min-height: 160px; justify-content: center; font-size: 40px; touch-action: manipulation; user-select: none; }
+.tpl-results { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-3); width: min(420px, 100%); }

@@ -1,12 +1,14 @@
+import { defineServer } from '@scribble/shared';
 import {
   CLASH_COLORS,
-  COLOR_CLASH_DURATION_MS,
-  COLOR_CLASH_POINTS_PER_HIT,
-  COLOR_CLASH_STREAK_BONUS,
-  COLOR_CLASH_STREAK_CAP,
+  DURATION_MS,
+  POINTS_PER_HIT,
+  STREAK_BONUS,
+  STREAK_CAP,
   type ClashColor,
-} from '@scribble/shared';
-import type { MinigameDefinition } from '../types';
+  type GameEvent,
+  type PlayerInput,
+} from './protocol';
 
 /** How often the ink matches the word, to catch players who stop reading. */
 const SAME_INK_CHANCE = 0.15;
@@ -32,9 +34,8 @@ interface PlayerProgress {
   promptAt: number;
 }
 
-export const colorClash: MinigameDefinition<'color-clash'> = {
-  id: 'color-clash',
-  maxDurationMs: COLOR_CLASH_DURATION_MS + 2_000,
+export default defineServer<PlayerInput, GameEvent>({
+  maxDurationMs: DURATION_MS + 2_000,
 
   create(ctx) {
     const progress = new Map<string, PlayerProgress>();
@@ -51,23 +52,23 @@ export const colorClash: MinigameDefinition<'color-clash'> = {
           progress.set(id, p);
           sendPrompt(id, p);
         }
-        ctx.setDeadline(COLOR_CLASH_DURATION_MS);
+        ctx.setDeadline(DURATION_MS);
         ctx.setTimeout(() => {
           const points: Record<string, number> = {};
           for (const [id, p] of progress) points[id] = p.score;
           ctx.end(points);
-        }, COLOR_CLASH_DURATION_MS);
+        }, DURATION_MS);
       },
 
       onInput(playerId, input) {
         const p = progress.get(playerId);
-        if (!p || input?.type !== 'answer' || input.index !== p.index) return;
+        if (!p || input.type !== 'answer' || input.index !== p.index) return;
         if (!CLASH_COLORS.includes(input.color)) return;
         if (Date.now() - p.promptAt < MIN_ANSWER_MS) return;
 
         const correct = input.color === p.prompt.ink;
         if (correct) {
-          p.score += COLOR_CLASH_POINTS_PER_HIT + Math.min(p.streak, COLOR_CLASH_STREAK_CAP) * COLOR_CLASH_STREAK_BONUS;
+          p.score += POINTS_PER_HIT + Math.min(p.streak, STREAK_CAP) * STREAK_BONUS;
           p.streak += 1;
         } else {
           p.streak = 0;
@@ -80,4 +81,4 @@ export const colorClash: MinigameDefinition<'color-clash'> = {
       },
     };
   },
-};
+});

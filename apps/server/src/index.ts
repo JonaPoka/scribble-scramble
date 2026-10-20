@@ -4,15 +4,19 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { Server } from 'socket.io';
 import { ROOM_CODE_LENGTH } from '@scribble/shared';
+import { loadMinigames } from './minigames';
 import { RoomManager } from './rooms';
 import type { GameServer, GameSocket } from './types';
 
 const PORT = Number(process.env.PORT ?? 3001);
+/** `npm run dev` passes --dev: solo games are allowed so one tab can test everything. */
+const DEV = process.argv.includes('--dev');
 
 const app = express();
 const httpServer = createServer(app);
 const io: GameServer = new Server(httpServer);
-const rooms = new RoomManager(io);
+const catalog = await loadMinigames();
+const rooms = new RoomManager(io, catalog, { minPlayers: DEV ? 1 : 2 });
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, rooms: rooms.size });
@@ -80,5 +84,5 @@ io.on('connection', (socket) => {
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`Scribble Scramble server listening on http://localhost:${PORT}`);
+  console.log(`Scribble Scramble server listening on http://localhost:${PORT}${DEV ? ' (dev mode)' : ''}`);
 });

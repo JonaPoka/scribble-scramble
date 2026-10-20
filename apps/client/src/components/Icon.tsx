@@ -1,8 +1,8 @@
-import type { AvatarFace } from '@scribble/shared';
+import type { AvatarFace, IconName } from '@scribble/shared';
 import type { ReactNode } from 'react';
 
 /** Doodle icons from the design sheet: 24px grid, 2.25 stroke, drawn in currentColor. */
-const ICONS = {
+const ICONS: Record<IconName, ReactNode> = {
   pencil: (
     <>
       <path d="M4 20l1.1-4.7L15.6 4.8a2.1 2.1 0 0 1 3 0l.6.6a2.1 2.1 0 0 1 0 3L8.7 18.9z" />
@@ -67,7 +67,7 @@ const ICONS = {
   ),
 };
 
-export type IconName = keyof typeof ICONS;
+export type { IconName };
 
 export function Icon({ name }: { name: IconName }) {
   return (

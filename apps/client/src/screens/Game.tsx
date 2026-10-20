@@ -1,8 +1,7 @@
-import { MINIGAMES, isPlayable, type MinigameEvent, type MinigameInput, type PlayableMinigameId, type RoomState } from '@scribble/shared';
-import { useCallback, type ComponentType, type ReactNode } from 'react';
+import type { MinigameEvent, RoomState } from '@scribble/shared';
+import { Component, useCallback, type ReactNode } from 'react';
 import { GameSplash, Scoreboard, Stamp, Timer, crayonStyle } from '../components/ui';
-import { MINIGAME_VIEWS } from '../minigames';
-import type { MinigameViewProps } from '../minigames/types';
+import { MINIGAME_VIEWS } from '../minigameViews';
 import { actions } from '../store';
 import { useCountdown } from '../useCountdown';
 
@@ -13,6 +12,28 @@ interface GameProps {
   clockOffset: number;
 }
 
+/** Keeps a crashing minigame view from taking down the whole screen. */
+class MinigameBoundary extends Component<{ name: string; children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error) {
+    console.error(`[minigames] ${this.props.name} crashed while drawing:`, error);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="ss-panel minigame-error">
+          <h2 className="ss-panel__title">{this.props.name} crashed</h2>
+          <p className="note">check the browser console. the next round starts soon.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function Game({ room, playerId, events, clockOffset }: GameProps) {
   const { round, phase, players } = room;
   const me = players.find((p) => p.id === playerId);
@@ -21,20 +42,21 @@ export function Game({ room, playerId, events, clockOffset }: GameProps) {
 
   const send = useCallback(
     (input: unknown) => {
-      if (minigame && isPlayable(minigame)) actions.sendInput({ game: minigame, input } as MinigameInput);
+      if (minigame) actions.sendInput({ game: minigame, input });
     },
     [minigame],
   );
 
   if (!round || !me || !minigame) return null;
-  const meta = MINIGAMES[minigame];
+  const meta = room.minigames.find((m) => m.id === minigame);
+  if (!meta) return null;
   const myPoints = room.lastRoundPoints[playerId] ?? 0;
 
   let stage: ReactNode;
   if (phase === 'intro') {
     stage = (
       <GameSplash
-        minigame={minigame}
+        meta={meta}
         round={round.number}
         total={round.total}
         countdown={countdown ? Math.max(1, Math.ceil(countdown.leftMs / 1000)) : null}
@@ -65,12 +87,21 @@ export function Game({ room, playerId, events, clockOffset }: GameProps) {
         </div>
       </div>
     );
-  } else if (isPlayable(minigame)) {
-    const View = MINIGAME_VIEWS[minigame] as unknown as ComponentType<MinigameViewProps<PlayableMinigameId>>;
-    const own = events.filter((e) => e.game === minigame).map((e) => e.event) as MinigameViewProps<PlayableMinigameId>['events'];
+  } else {
+    const View = MINIGAME_VIEWS[minigame];
+    const own = events.filter((e) => e.game === minigame).map((e) => e.event);
     stage = (
       <>
-        <View events={own} me={me} players={players} phase={phase} send={send} />
+        {View ? (
+          <MinigameBoundary key={`${round.number}-${minigame}`} name={meta.name}>
+            <View events={own} me={me} players={players} phase={phase} send={send} />
+          </MinigameBoundary>
+        ) : (
+          <div className="ss-panel minigame-error">
+            <h2 className="ss-panel__title">{meta.name} has no screen yet</h2>
+            <p className="note">add minigames/{minigame}/client.tsx</p>
+          </div>
+        )}
         {phase === 'results' && (
           <div className="round-points">
             <Stamp kind={myPoints > 0 ? 'points' : 'wrong'}>{myPoints > 0 ? `+${myPoints}` : '+0'}</Stamp>

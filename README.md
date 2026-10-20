@@ -2,7 +2,7 @@
 
 A realtime browser party game. Up to 8 friends join a room with a 4-letter code, then race through short minigames that rotate every round: reflex tests, drawing, guessing, bluffing and button-mashing. Think skribbl.io meets WarioWare and Jackbox, drawn in a sketchbook.
 
-**Playable now:** lobby with room codes and invite links, a 5-round game loop with random minigames, live scores, and two minigames: **Quick Draw** and **Color Clash**.
+**Playable now:** lobby with room codes and invite links, a 5-round game loop with random minigames, live scores, and two minigames: **Quick Draw** and **Color Clash**. New minigames are drop-in folders.
 
 ## Getting started
 
@@ -18,34 +18,37 @@ Open http://localhost:5173. In development you can start a game alone; open a se
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | Game server on :3001 and the Vite client on :5173 (proxies Socket.IO to the server), both with reload |
-| `npm run typecheck` | Type-checks every package |
-| `npm run build` | Builds the client to `apps/client/dist` and the server to `apps/server/dist` |
-| `npm start` | Runs the built server, which also serves the built client on `PORT` (default 3001) |
+| `npm run new-minigame <id>` | Creates `minigames/<id>/` from the template |
+| `npm run typecheck` | Type-checks every package and every minigame |
+| `npm run build` | Builds the client to `apps/client/dist` |
+| `npm start` | Runs the server, which also serves the built client on `PORT` (default 3001). Needs at least 2 players per game |
 
 ## How it's built
 
 ```
-packages/shared   Types shared by both sides: socket events, room state, minigame catalogue and protocols
-apps/server       Node + Express + Socket.IO. Rooms, the round loop and each minigame's rules (server-authoritative)
-apps/client       React + Vite. Screens, the design-system styles and each minigame's view
+minigames/        One folder per minigame, loaded automatically (see below)
+packages/shared   Types shared by both sides: socket events, room state and the minigame SDK
+apps/server       Node + Express + Socket.IO. Rooms, the round loop and the minigame loader
+apps/client       React + Vite. Screens, the design-system styles and the UI kit minigames use
 ```
 
 - The server owns all game state. Clients send inputs (`game:input`) and render what the server broadcasts (`room:state`, `game:event`).
 - A round goes `intro` (3s splash) → `playing` (the minigame) → `results` (4.5s) → next round, then `finished`.
-- Minigames are self-contained: a server definition in `apps/server/src/minigames/` and a React view in `apps/client/src/minigames/`, typed by a protocol in `packages/shared/src/minigames/`.
+- The server runs on `tsx`, so minigame `.ts` files load straight from their folders with no build step.
 
 ### Adding a minigame
 
-1. **Protocol:** add `packages/shared/src/minigames/<name>.ts` with its `Input` and `Event` types, export it from `src/index.ts`, and add it to `MinigameProtocol` in `protocol.ts`.
-2. **Make it playable:** add its id to `PLAYABLE_MINIGAMES` in `minigames/catalog.ts` (its name, crayon and rule are already there).
-3. **Server:** write a `MinigameDefinition` in `apps/server/src/minigames/` and register it in `index.ts`. Use the `ctx` it gets to emit events, set timers and the countdown, and call `ctx.end(points)`. Validate every input.
-4. **Client:** write a view in `apps/client/src/minigames/` that derives its state from `events` and calls `send(input)`. Register it in `index.ts`.
+Each minigame is a self-contained folder: `minigames/<id>/` with `meta.ts`, `protocol.ts`, `server.ts`, `client.tsx` and an optional `style.css`. The server scans the folder on startup (and restarts when you add or change one in dev), and the client picks up every `client.tsx` automatically. No registration anywhere.
 
-The compiler points at any registry you forgot. `quick-draw` is the smallest example to copy.
+```bash
+npm run new-minigame hot-potato
+```
+
+That copies `minigames/_template`, a small working game, so you can play it right away and change it from there. Folders starting with `_` are skipped. The full guide is [docs/creating-minigames.md](docs/creating-minigames.md).
 
 ## Design
 
-Everything looks hand-drawn: notebook paper, marker outlines, crayon fills, hard offset shadows and slightly tilted shapes. The tokens and component styles in `apps/client/src/styles/` come from the Scribble Scramble design sheet. It has a light Sketchbook theme and a dark Chalkboard theme that follows the OS setting. Fonts: Rubik Doodle Shadow (display), Shantell Sans (UI text) and Gochi Hand (scribbled notes), from Google Fonts.
+Everything looks hand-drawn: notebook paper, marker outlines, crayon fills, hard offset shadows and slightly tilted shapes. The tokens and component styles in `apps/client/src/styles/` come from the Scribble Scramble design sheet. The game uses the light Sketchbook theme (white paper) on every device. Fonts: Rubik Doodle Shadow (display), Shantell Sans (UI text) and Gochi Hand (scribbled notes), from Google Fonts.
 
 ## Roadmap
 

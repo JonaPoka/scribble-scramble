@@ -1,11 +1,11 @@
 /* Scribble Scramble design tokens, generated from the design sheet's tokens.json.
-   Sketchbook (light) is the default; Chalkboard (dark) follows the OS or data-theme="dark". */
+   The game always uses Sketchbook (white paper). Chalkboard (dark) is opt-in: set data-theme="dark" on <html>. */
 
 :root {
-  --paper: #fbf3df;
-  --paper-line: #eadcb9;
-  --panel: #fffaf0;
-  --panel-sunk: #f3e7c9;
+  --paper: #ffffff;
+  --paper-line: #ebe5d8;
+  --panel: #fffdf8;
+  --panel-sunk: #f5efe2;
   --ink: #2b1d14;
   --ink-soft: #6b5442;
   --outline: #2b1d14;
@@ -50,37 +50,7 @@
   --font-display: "Rubik Doodle Shadow", "Shantell Sans", "Comic Sans MS", cursive;
   --font-body: "Shantell Sans", "Comic Sans MS", "Trebuchet MS", sans-serif;
   --font-hand: "Gochi Hand", "Shantell Sans", cursive;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #1f2b28;
-    --paper-line: #2c3b37;
-    --panel: #2a3934;
-    --panel-sunk: #18221f;
-    --ink: #f3eddc;
-    --ink-soft: #b8c4bb;
-    --outline: #f3eddc;
-    --drop: #0b100f;
-    --on-crayon: #2b1d14;
-    --tomato: #ff6b5e;
-    --sky: #5ccdf3;
-    --sunny: #ffd84f;
-    --grass: #6fdc7c;
-    --grape: #ad8cff;
-    --tangerine: #ffab3d;
-    --bubblegum: #ff93c9;
-    --cocoa: #d09a6c;
-    --correct: var(--grass);
-    --close: var(--sunny);
-    --wrong: #c9352b;
-    --on-wrong: #fff8ea;
-    --focus: #8ab4ff;
-    --drop-sm: 2px 2px 0 #0b100f;
-    --drop-md: 4px 4px 0 #0b100f;
-    --drop-lg: 7px 7px 0 #0b100f;
-    color-scheme: dark;
-  }
+  color-scheme: light;
 }
 
 :root[data-theme="dark"] {

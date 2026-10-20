@@ -1,7 +1,5 @@
-import type { MinigameId, PlayableMinigameId } from './minigames/catalog';
-import type { ColorClashEvent, ColorClashInput } from './minigames/color-clash';
-import type { QuickDrawEvent, QuickDrawInput } from './minigames/quick-draw';
 import type { AvatarFace, PublicPlayer } from './players';
+import type { MinigameInfo } from './sdk';
 
 export type RoomPhase = 'lobby' | 'intro' | 'playing' | 'results' | 'finished';
 
@@ -12,7 +10,8 @@ export interface RoomSettings {
 export interface RoundInfo {
   number: number;
   total: number;
-  minigame: MinigameId;
+  /** Folder name of the minigame being played. */
+  minigame: string;
   /** Server epoch ms when the current phase ends, or null when it has no fixed end. */
   deadline: number | null;
 }
@@ -25,23 +24,23 @@ export interface RoomState {
   /** Points each player earned in the round that just ended. */
   lastRoundPoints: Record<string, number>;
   settings: RoomSettings;
+  /** Every minigame the server loaded from the minigames folder. */
+  minigames: MinigameInfo[];
   /** Server clock when this state was sent, so clients can correct for clock skew. */
   serverNow: number;
 }
 
-/** Input and event types for each playable minigame. */
-export interface MinigameProtocol {
-  'quick-draw': { input: QuickDrawInput; event: QuickDrawEvent };
-  'color-clash': { input: ColorClashInput; event: ColorClashEvent };
+/** Input from a player to the running minigame. `input` is whatever that minigame's protocol defines. */
+export interface MinigameInput {
+  game: string;
+  input: unknown;
 }
 
-export type MinigameInput = {
-  [K in PlayableMinigameId]: { game: K; input: MinigameProtocol[K]['input'] };
-}[PlayableMinigameId];
-
-export type MinigameEvent = {
-  [K in PlayableMinigameId]: { game: K; event: MinigameProtocol[K]['event'] };
-}[PlayableMinigameId];
+/** An event from the running minigame to players. */
+export interface MinigameEvent {
+  game: string;
+  event: unknown;
+}
 
 export type AckResult<T> = { ok: true; data: T } | { ok: false; error: string };
 export type Ack<T> = (result: AckResult<T>) => void;

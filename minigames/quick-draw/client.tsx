@@ -1,14 +1,15 @@
-import type { QuickDrawEvent } from '@scribble/shared';
+import { Stamp } from '@scribble/client/kit';
+import type { MinigameViewProps } from '@scribble/shared';
 import { useEffect } from 'react';
-import { Stamp } from '../components/ui';
-import type { MinigameViewProps } from './types';
+import type { GameEvent, PlayerInput } from './protocol';
+import './style.css';
 
 type Status = 'wait' | 'go' | 'early' | 'clicked';
 
-function derive(events: QuickDrawEvent[]) {
+function derive(events: GameEvent[]) {
   let status: Status = 'wait';
-  let mine: Extract<QuickDrawEvent, { type: 'clicked' }> | null = null;
-  let standings: Extract<QuickDrawEvent, { type: 'standings' }> | null = null;
+  let mine: Extract<GameEvent, { type: 'clicked' }> | null = null;
+  let standings: Extract<GameEvent, { type: 'standings' }> | null = null;
   for (const e of events) {
     if (e.type === 'go' && status === 'wait') status = 'go';
     else if (e.type === 'early') status = 'early';
@@ -20,7 +21,7 @@ function derive(events: QuickDrawEvent[]) {
   return { status, mine, standings };
 }
 
-export function QuickDraw({ events, players, phase, send }: MinigameViewProps<'quick-draw'>) {
+export default function QuickDraw({ events, players, phase, send }: MinigameViewProps<PlayerInput, GameEvent>) {
   const { status, mine, standings } = derive(events);
   const canClick = phase === 'playing' && (status === 'wait' || status === 'go');
   const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? 'Someone';

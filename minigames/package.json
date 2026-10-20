@@ -1,0 +1,14 @@
+{
+  "name": "@scribble/minigames",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Every folder here is a minigame. The server and client load them automatically; folders starting with _ are skipped.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@scribble/client": "*",
+    "@scribble/shared": "*"
+  }
+}

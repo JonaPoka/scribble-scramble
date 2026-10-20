@@ -10,16 +10,16 @@ export const CLASH_WORDS: Record<ClashColor, string> = {
   grass: 'GREEN',
 };
 
-export type ColorClashInput = { type: 'answer'; index: number; color: ClashColor };
+export type PlayerInput = { type: 'answer'; index: number; color: ClashColor };
 
-export type ColorClashEvent =
+export type GameEvent =
   /** The next prompt for this player. Each player moves through prompts at their own pace. */
   | { type: 'prompt'; index: number; word: ClashColor; ink: ClashColor }
   /** Result of this player's last answer. */
   | { type: 'feedback'; index: number; correct: boolean; streak: number; score: number };
 
-export const COLOR_CLASH_DURATION_MS = 20_000;
-export const COLOR_CLASH_POINTS_PER_HIT = 50;
+export const DURATION_MS = 20_000;
+export const POINTS_PER_HIT = 50;
 /** Extra points per answer in a streak, capped at this many streak steps. */
-export const COLOR_CLASH_STREAK_BONUS = 10;
-export const COLOR_CLASH_STREAK_CAP = 5;
+export const STREAK_BONUS = 10;
+export const STREAK_CAP = 5;

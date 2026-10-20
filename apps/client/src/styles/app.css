@@ -47,8 +47,6 @@ body { min-height: 100dvh; }
 .lobby__games { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-6); }
 .card-grid .ss-game { width: auto; }
-.ss-game--soon { opacity: .55; }
-.ss-game--soon .ss-game__art { filter: grayscale(.6); }
 
 /* ---------- Game ---------- */
 .game {
@@ -66,67 +64,11 @@ body { min-height: 100dvh; }
 .round-points { position: absolute; top: var(--space-4); right: var(--space-4); }
 .finish { display: flex; flex-direction: column; align-items: center; gap: var(--space-8); width: 100%; }
 .finish .ss-splash__title { font-size: clamp(56px, 10vw, 112px); }
-
-/* ---------- Quick Draw ---------- */
-.qd { display: flex; flex-direction: column; align-items: center; gap: var(--space-6); width: 100%; }
-.qd-pad {
-  width: min(560px, 100%);
-  min-height: 320px;
-  display: grid; place-items: center;
-  font: inherit; color: var(--on-crayon);
-  border: var(--stroke-bold) solid var(--outline);
-  border-radius: var(--wobble-card);
-  box-shadow: var(--drop-lg);
-  cursor: pointer;
-  touch-action: manipulation;
-  user-select: none;
-}
-.qd-pad:disabled { cursor: default; }
-.qd-pad:focus-visible { outline: 3px solid var(--focus); outline-offset: 6px; }
-.qd-pad--wait { background: var(--tomato); }
-.qd-pad--go { background: var(--sunny); }
-.qd-pad--early { background: var(--panel); }
-.qd-pad--clicked { background: var(--correct); }
-.qd-pad__wait { font: 400 40px/1 var(--font-hand); }
-.qd-pad__go { font: 400 112px/.9 var(--font-display); transform: rotate(var(--tilt-wild)); animation: ss-pop 360ms cubic-bezier(.34, 1.56, .64, 1); }
-.qd-pad__result { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
-.qd-pad__result .note { color: var(--on-crayon); }
-.qd-standings { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); text-align: center; }
-
-/* ---------- Color Clash ---------- */
-.cc { display: flex; flex-direction: column; align-items: center; gap: var(--space-6); width: min(560px, 100%); }
-.cc-score { display: flex; align-items: center; gap: var(--space-3); }
-.cc-card {
-  position: relative;
-  width: 100%; min-height: 200px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4);
-  background: var(--drop);
-  border: var(--stroke-bold) solid var(--outline);
-  border-radius: var(--wobble-card);
-  box-shadow: var(--drop-lg);
-}
-.cc-word { font: 400 clamp(56px, 12vw, 96px)/1 var(--font-display); letter-spacing: .04em; }
-.cc-ink-bar { width: 120px; height: 16px; border: var(--stroke-thin) solid var(--panel); border-radius: var(--radius-pill); }
-.cc-feedback { position: absolute; top: -18px; right: -12px; }
-.cc-answers { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4); width: 100%; }
-.cc-answer { justify-content: space-between; min-height: 72px; color: var(--on-crayon); font-size: 22px; }
-.cc-answer kbd { font: 700 14px/1 var(--font-body); padding: 4px 8px; background: var(--panel); color: var(--ink); border: var(--stroke-thin) solid var(--outline); border-radius: var(--radius-sm); }
-.cc-answer__label { padding: 2px 8px; background: var(--panel); color: var(--ink); border-radius: var(--radius-sm); }
-
-/* Patterns layered over the crayon fill so each ink is recognisable without colour. */
-.pattern-stripes { background-image: repeating-linear-gradient(-45deg, transparent 0 10px, rgba(43, 29, 20, .28) 10px 16px) !important; }
-.pattern-dots { background-image: radial-gradient(rgba(43, 29, 20, .32) 3px, transparent 3.5px) !important; background-size: 14px 14px !important; }
-.pattern-zigzag {
-  background-image:
-    linear-gradient(135deg, rgba(43, 29, 20, .28) 25%, transparent 25%),
-    linear-gradient(225deg, rgba(43, 29, 20, .28) 25%, transparent 25%) !important;
-  background-size: 16px 16px !important;
-}
-.pattern-plain { background-image: none; }
+.minigame-error { width: min(480px, 100%); text-align: center; }
 
 /* ---------- Phones ---------- */
 @media (max-width: 860px) {
   .lobby__grid { grid-template-columns: 1fr; }
   .game { grid-template-columns: 1fr; grid-template-areas: "bar" "stage" "rail"; min-height: 0; }
-  .stage-splash, .qd-pad { min-height: 260px; }
+  .stage-splash { min-height: 260px; }
 }

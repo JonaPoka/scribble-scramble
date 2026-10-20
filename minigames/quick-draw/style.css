@@ -1,0 +1,30 @@
+/* Quick Draw. Classes are prefixed with qd- so they can't clash with other minigames. */
+
+.qd { display: flex; flex-direction: column; align-items: center; gap: var(--space-6); width: 100%; }
+.qd-pad {
+  width: min(560px, 100%);
+  min-height: 320px;
+  display: grid; place-items: center;
+  font: inherit; color: var(--on-crayon);
+  border: var(--stroke-bold) solid var(--outline);
+  border-radius: var(--wobble-card);
+  box-shadow: var(--drop-lg);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+.qd-pad:disabled { cursor: default; }
+.qd-pad:focus-visible { outline: 3px solid var(--focus); outline-offset: 6px; }
+.qd-pad--wait { background: var(--tomato); }
+.qd-pad--go { background: var(--sunny); }
+.qd-pad--early { background: var(--panel); }
+.qd-pad--clicked { background: var(--correct); }
+.qd-pad__wait { font: 400 40px/1 var(--font-hand); }
+.qd-pad__go { font: 400 112px/.9 var(--font-display); transform: rotate(var(--tilt-wild)); animation: ss-pop 360ms cubic-bezier(.34, 1.56, .64, 1); }
+.qd-pad__result { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.qd-pad__result .note { color: var(--on-crayon); }
+.qd-standings { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); text-align: center; }
+
+@media (max-width: 860px) {
+  .qd-pad { min-height: 260px; }
+}
