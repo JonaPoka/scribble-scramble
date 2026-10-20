@@ -1,0 +1,21 @@
+{
+  "name": "scribble-scramble",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A realtime browser party game of fast, rotating minigames with a hand-drawn look.",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c yellow,cyan \"npm run dev -w @scribble/server\" \"npm run dev -w @scribble/client\"",
+    "build": "npm run build -w @scribble/client && npm run build -w @scribble/server",
+    "start": "npm run start -w @scribble/server",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "typescript": "^7.0.2"
+  }
+}

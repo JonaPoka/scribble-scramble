@@ -1,0 +1,271 @@
+import { randomUUID } from 'node:crypto';
+import {
+  AVATAR_FACES,
+  CRAYONS,
+  MAX_PLAYERS,
+  NAME_MAX_LENGTH,
+  PLAYABLE_MINIGAMES,
+  type AckResult,
+  type AvatarFace,
+  type JoinResult,
+  type MinigameEvent,
+  type PlayableMinigameId,
+  type PublicPlayer,
+  type RoomPhase,
+  type RoomSettings,
+  type RoomState,
+  type RoundInfo,
+} from '@scribble/shared';
+import { MINIGAME_REGISTRY } from './minigames';
+import type { GameServer, GameSocket, MinigameContext, MinigameDefinition, MinigameInstance } from './types';
+
+const INTRO_MS = 3_000;
+const RESULTS_MS = 4_500;
+const DEFAULT_ROUNDS = 5;
+/** Solo games are allowed in development so one browser tab can test everything. */
+const MIN_PLAYERS = process.env.NODE_ENV === 'production' ? 2 : 1;
+
+interface Player extends Omit<PublicPlayer, 'isHost'> {
+  socketId: string | null;
+}
+
+interface ActiveMinigame {
+  id: PlayableMinigameId;
+  playerIds: readonly string[];
+  instance: MinigameInstance<PlayableMinigameId> | null;
+  timers: Set<NodeJS.Timeout>;
+  ended: boolean;
+}
+
+function cleanName(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  return raw.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, NAME_MAX_LENGTH);
+}
+
+export class Room {
+  private readonly players = new Map<string, Player>();
+  private hostId: string | null = null;
+  private phase: RoomPhase = 'lobby';
+  private round: RoundInfo | null = null;
+  private lastRoundPoints: Record<string, number> = {};
+  private readonly settings: RoomSettings = { rounds: DEFAULT_ROUNDS };
+  private phaseTimer: NodeJS.Timeout | null = null;
+  private active: ActiveMinigame | null = null;
+  private recent: PlayableMinigameId[] = [];
+
+  constructor(
+    readonly code: string,
+    private readonly io: GameServer,
+    private readonly onEmpty: () => void,
+  ) {}
+
+  get isEmpty(): boolean {
+    return ![...this.players.values()].some((p) => p.connected);
+  }
+
+  addPlayer(socket: GameSocket, payload: { name?: unknown; face?: unknown }): AckResult<JoinResult> {
+    let name = cleanName(payload?.name);
+    if (!name) return { ok: false, error: 'Pick a name first.' };
+    if (this.players.size >= MAX_PLAYERS) return { ok: false, error: `This room is full (${MAX_PLAYERS} players).` };
+
+    const taken = new Set([...this.players.values()].map((p) => p.name.toLowerCase()));
+    for (let n = 2; taken.has(name.toLowerCase()); n++) {
+      name = `${name.slice(0, NAME_MAX_LENGTH - String(n).length)}${n}`;
+    }
+
+    const usedColors = new Set([...this.players.values()].map((p) => p.color));
+    const color = CRAYONS.find((c) => !usedColors.has(c)) ?? CRAYONS[0];
+    const face: AvatarFace = AVATAR_FACES.includes(payload?.face as AvatarFace) ? (payload.face as AvatarFace) : 'smile';
+
+    const player: Player = { id: randomUUID(), socketId: socket.id, name, color, face, score: 0, connected: true };
+    this.players.set(player.id, player);
+    this.hostId ??= player.id;
+
+    socket.join(this.code);
+    socket.data.playerId = player.id;
+    socket.data.roomCode = this.code;
+    this.broadcast();
+    return { ok: true, data: { code: this.code, playerId: player.id } };
+  }
+
+  removePlayer(playerId: string, reason: 'left' | 'disconnected'): void {
+    const player = this.players.get(playerId);
+    if (!player) return;
+
+    if (this.phase === 'lobby' || reason === 'left') {
+      this.players.delete(playerId);
+    } else {
+      // Keep their score on the board for the rest of the game.
+      player.connected = false;
+      player.socketId = null;
+    }
+
+    if (this.hostId === playerId) {
+      this.hostId = [...this.players.values()].find((p) => p.connected)?.id ?? null;
+    }
+
+    if (this.isEmpty) {
+      this.dispose();
+      this.onEmpty();
+      return;
+    }
+    this.broadcast();
+  }
+
+  /** Returns an error message, or null when the game started. */
+  start(playerId: string): string | null {
+    if (playerId !== this.hostId) return 'Only the host can start the game.';
+    if (this.phase !== 'lobby' && this.phase !== 'finished') return 'The game is already running.';
+
+    for (const [id, p] of this.players) if (!p.connected) this.players.delete(id);
+    if (this.players.size < MIN_PLAYERS) return `You need at least ${MIN_PLAYERS} players to start.`;
+
+    for (const p of this.players.values()) p.score = 0;
+    this.lastRoundPoints = {};
+    this.recent = [];
+    this.beginRound(1);
+    return null;
+  }
+
+  handleInput(playerId: string, raw: unknown): void {
+    const active = this.active;
+    if (!active?.instance || active.ended || this.phase !== 'playing') return;
+    if (typeof raw !== 'object' || raw === null) return;
+    const { game, input } = raw as { game?: unknown; input?: unknown };
+    if (game !== active.id || !active.playerIds.includes(playerId)) return;
+    if (typeof input !== 'object' || input === null) return;
+    active.instance.onInput(playerId, input as never);
+  }
+
+  dispose(): void {
+    if (this.phaseTimer) clearTimeout(this.phaseTimer);
+    this.phaseTimer = null;
+    if (this.active) this.stopActive(this.active);
+  }
+
+  private beginRound(number: number): void {
+    const minigame = this.pickMinigame();
+    this.round = { number, total: this.settings.rounds, minigame, deadline: Date.now() + INTRO_MS };
+    this.phase = 'intro';
+    this.broadcast();
+    this.schedule(() => this.startMinigame(minigame), INTRO_MS);
+  }
+
+  /** Random minigame, avoiding the most recent ones so the same game doesn't repeat back to back. */
+  private pickMinigame(): PlayableMinigameId {
+    const avoid = new Set(this.recent.slice(-Math.floor(PLAYABLE_MINIGAMES.length / 2)));
+    const options = PLAYABLE_MINIGAMES.filter((id) => !avoid.has(id));
+    const id = options[Math.floor(Math.random() * options.length)] ?? PLAYABLE_MINIGAMES[0];
+    this.recent.push(id);
+    return id;
+  }
+
+  private startMinigame(id: PlayableMinigameId): void {
+    const def = MINIGAME_REGISTRY[id] as unknown as MinigameDefinition<PlayableMinigameId>;
+    const active: ActiveMinigame = {
+      id,
+      playerIds: [...this.players.values()].filter((p) => p.connected).map((p) => p.id),
+      instance: null,
+      timers: new Set(),
+      ended: false,
+    };
+
+    const ctx: MinigameContext<PlayableMinigameId> = {
+      playerIds: active.playerIds,
+      emit: (event) => {
+        if (active.ended) return;
+        this.io.to(this.code).emit('game:event', { game: id, event } as MinigameEvent);
+      },
+      emitTo: (playerId, event) => {
+        const socketId = this.players.get(playerId)?.socketId;
+        if (active.ended || !socketId) return;
+        this.io.to(socketId).emit('game:event', { game: id, event } as MinigameEvent);
+      },
+      setTimeout: (fn, ms) => {
+        const timer = setTimeout(() => {
+          active.timers.delete(timer);
+          if (!active.ended) fn();
+        }, ms);
+        active.timers.add(timer);
+      },
+      setDeadline: (ms) => {
+        if (active.ended || !this.round) return;
+        this.round.deadline = Date.now() + ms;
+        this.broadcast();
+      },
+      end: (points) => this.finishMinigame(active, points),
+    };
+
+    this.phase = 'playing';
+    if (this.round) this.round.deadline = null;
+    this.active = active;
+    // Clients mount the minigame on this state, before its first event arrives.
+    this.broadcast();
+
+    active.instance = def.create(ctx);
+    active.instance.start();
+    this.schedule(() => this.finishMinigame(active, {}), def.maxDurationMs);
+  }
+
+  private finishMinigame(active: ActiveMinigame, rawPoints: Record<string, number>): void {
+    if (active.ended || this.active !== active) return;
+    this.stopActive(active);
+    this.active = null;
+
+    const points: Record<string, number> = {};
+    for (const id of active.playerIds) {
+      const value = Math.max(0, Math.round(Number(rawPoints[id] ?? 0)));
+      const player = this.players.get(id);
+      if (!player || !Number.isFinite(value)) continue;
+      points[id] = value;
+      player.score += value;
+    }
+    this.lastRoundPoints = points;
+
+    this.phase = 'results';
+    const round = this.round;
+    if (round) round.deadline = Date.now() + RESULTS_MS;
+    this.broadcast();
+
+    this.schedule(() => {
+      if (!round || round.number >= round.total) this.finishGame();
+      else this.beginRound(round.number + 1);
+    }, RESULTS_MS);
+  }
+
+  private finishGame(): void {
+    this.phase = 'finished';
+    if (this.round) this.round.deadline = null;
+    this.broadcast();
+  }
+
+  private stopActive(active: ActiveMinigame): void {
+    active.ended = true;
+    for (const timer of active.timers) clearTimeout(timer);
+    active.timers.clear();
+  }
+
+  private schedule(fn: () => void, ms: number): void {
+    if (this.phaseTimer) clearTimeout(this.phaseTimer);
+    this.phaseTimer = setTimeout(() => {
+      this.phaseTimer = null;
+      fn();
+    }, ms);
+  }
+
+  private toState(): RoomState {
+    return {
+      code: this.code,
+      phase: this.phase,
+      players: [...this.players.values()].map(({ socketId: _socketId, ...p }) => ({ ...p, isHost: p.id === this.hostId })),
+      round: this.round ? { ...this.round } : null,
+      lastRoundPoints: this.lastRoundPoints,
+      settings: this.settings,
+      serverNow: Date.now(),
+    };
+  }
+
+  private broadcast(): void {
+    this.io.to(this.code).emit('room:state', this.toState());
+  }
+}

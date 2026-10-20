@@ -1,0 +1,113 @@
+/* Scribble Scramble design tokens, generated from the design sheet's tokens.json.
+   Sketchbook (light) is the default; Chalkboard (dark) follows the OS or data-theme="dark". */
+
+:root {
+  --paper: #fbf3df;
+  --paper-line: #eadcb9;
+  --panel: #fffaf0;
+  --panel-sunk: #f3e7c9;
+  --ink: #2b1d14;
+  --ink-soft: #6b5442;
+  --outline: #2b1d14;
+  --drop: #2b1d14;
+  --on-crayon: #2b1d14;
+  --tomato: #ff5d4f;
+  --sky: #4cc4f0;
+  --sunny: #ffd23f;
+  --grass: #63d471;
+  --grape: #a07bff;
+  --tangerine: #ff9f1c;
+  --bubblegum: #ff86c2;
+  --cocoa: #c48a5c;
+  --correct: var(--grass);
+  --close: var(--sunny);
+  --wrong: #b3261e;
+  --on-wrong: #fff8ea;
+  --focus: #1d5fff;
+  --drop-sm: 2px 2px 0 #2b1d14;
+  --drop-md: 4px 4px 0 #2b1d14;
+  --drop-lg: 7px 7px 0 #2b1d14;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-sm: 6px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+  --stroke-thin: 2px;
+  --stroke-md: 3px;
+  --stroke-bold: 4px;
+  --wobble-card: 255px 18px 225px 18px / 18px 225px 18px 255px;
+  --wobble-btn: 28px 8px 24px 10px / 10px 24px 8px 28px;
+  --wobble-blob: 52% 48% 55% 45% / 47% 53% 47% 53%;
+  --tilt-left: -1.2deg;
+  --tilt-right: 1deg;
+  --tilt-wild: -6deg;
+  --font-display: "Rubik Doodle Shadow", "Shantell Sans", "Comic Sans MS", cursive;
+  --font-body: "Shantell Sans", "Comic Sans MS", "Trebuchet MS", sans-serif;
+  --font-hand: "Gochi Hand", "Shantell Sans", cursive;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1f2b28;
+    --paper-line: #2c3b37;
+    --panel: #2a3934;
+    --panel-sunk: #18221f;
+    --ink: #f3eddc;
+    --ink-soft: #b8c4bb;
+    --outline: #f3eddc;
+    --drop: #0b100f;
+    --on-crayon: #2b1d14;
+    --tomato: #ff6b5e;
+    --sky: #5ccdf3;
+    --sunny: #ffd84f;
+    --grass: #6fdc7c;
+    --grape: #ad8cff;
+    --tangerine: #ffab3d;
+    --bubblegum: #ff93c9;
+    --cocoa: #d09a6c;
+    --correct: var(--grass);
+    --close: var(--sunny);
+    --wrong: #c9352b;
+    --on-wrong: #fff8ea;
+    --focus: #8ab4ff;
+    --drop-sm: 2px 2px 0 #0b100f;
+    --drop-md: 4px 4px 0 #0b100f;
+    --drop-lg: 7px 7px 0 #0b100f;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #1f2b28;
+  --paper-line: #2c3b37;
+  --panel: #2a3934;
+  --panel-sunk: #18221f;
+  --ink: #f3eddc;
+  --ink-soft: #b8c4bb;
+  --outline: #f3eddc;
+  --drop: #0b100f;
+  --on-crayon: #2b1d14;
+  --tomato: #ff6b5e;
+  --sky: #5ccdf3;
+  --sunny: #ffd84f;
+  --grass: #6fdc7c;
+  --grape: #ad8cff;
+  --tangerine: #ffab3d;
+  --bubblegum: #ff93c9;
+  --cocoa: #d09a6c;
+  --correct: var(--grass);
+  --close: var(--sunny);
+  --wrong: #c9352b;
+  --on-wrong: #fff8ea;
+  --focus: #8ab4ff;
+  --drop-sm: 2px 2px 0 #0b100f;
+  --drop-md: 4px 4px 0 #0b100f;
+  --drop-lg: 7px 7px 0 #0b100f;
+  color-scheme: dark;
+}
