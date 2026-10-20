@@ -78,7 +78,9 @@ export function DrawingCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const resize = () => {
-      const cssWidth = canvas.getBoundingClientRect().width;
+      // clientWidth is the layout size. getBoundingClientRect() would include CSS transforms, so a
+      // canvas measured mid-animation (the popup scales in from 30%) would get too few pixels and blur.
+      const cssWidth = canvas.clientWidth;
       if (!cssWidth) return;
       const px = Math.round(cssWidth * Math.min(window.devicePixelRatio || 1, 2));
       if (canvas.width === px) return;
